@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+:root {
+  --color-paper: #FBF3E4;
+  --color-ink: #2B1B12;
+  --color-ink-muted: #6B5C4E;
+  --color-marigold: #D99A1B;
+  --color-durva: #4B7A4E;
+  --color-sindoor: #A83232;
+  --color-peacock: #1F6E76;
+  --color-line: #E4D9C4;
+  --color-surface: #FFFFFF;
+}
+
+@theme inline {
+  --color-paper: var(--color-paper);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-marigold: var(--color-marigold);
+  --color-durva: var(--color-durva);
+  --color-sindoor: var(--color-sindoor);
+  --color-peacock: var(--color-peacock);
+  --color-line: var(--color-line);
+  --color-surface: var(--color-surface);
+
+  --font-sans: var(--font-inter), var(--font-noto-telugu), var(--font-noto-devanagari), system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: var(--font-sans);
+
+  /* Type scale — rem units throughout (not px), so the whole scale responds
+     when a user increases their device/browser base font size. Sizes match
+     docs/design-system.md's Type Scale table exactly (px value / 16 = rem);
+     nothing here is an invented size. */
+
+  --text-display-xl: 2.5rem;      /* 40px */
+  --text-display-xl--line-height: 2.75rem;  /* 44px */
+  --text-display-xl--font-weight: 600;
+
+  --text-display-lg: 1.75rem;     /* 28px */
+  --text-display-lg--line-height: 2.125rem; /* 34px */
+  --text-display-lg--font-weight: 600;
+
+  --text-heading-1: 1.375rem;     /* 22px */
+  --text-heading-1--line-height: 1.75rem;   /* 28px */
+  --text-heading-1--font-weight: 600;
+
+  --text-heading-2: 1.125rem;     /* 18px */
+  --text-heading-2--line-height: 1.5rem;    /* 24px */
+  --text-heading-2--font-weight: 600;
+
+  --text-body: 0.9375rem;         /* 15px */
+  --text-body--line-height: 1.375rem;       /* 22px */
+  --text-body--font-weight: 400;
+
+  --text-body-strong: 0.9375rem;  /* 15px */
+  --text-body-strong--line-height: 1.375rem; /* 22px */
+  --text-body-strong--font-weight: 600;
+
+  --text-caption: 0.8125rem;      /* 13px */
+  --text-caption--line-height: 1.125rem;    /* 18px */
+  --text-caption--font-weight: 400;
+
+  --text-amount-lg: 1.25rem;      /* 20px */
+  --text-amount-lg--line-height: 1.625rem;  /* 26px */
+  --text-amount-lg--font-weight: 500;
+
+  --text-amount-sm: 0.9375rem;    /* 15px */
+  --text-amount-sm--line-height: 1.25rem;   /* 20px */
+  --text-amount-sm--font-weight: 500;
+
+  --text-badge: 0.75rem;          /* 12px */
+  --text-badge--line-height: 1rem;          /* 16px */
+  --text-badge--font-weight: 600;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}

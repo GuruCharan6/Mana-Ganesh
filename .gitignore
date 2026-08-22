@@ -1,0 +1,31 @@
+# env files — never commit real credentials
+.env
+.env.*
+!.env.example
+
+# Node / Next.js (web/)
+node_modules/
+.next/
+out/
+build/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Python (api/)
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Editor / OS
+.DS_Store
+*.pem
+
+# Local tooling config (not needed by other contributors)
+.claude/

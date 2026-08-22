@@ -1,0 +1,24 @@
+{
+  "name": "Mana Ganesh",
+  "short_name": "Mana Ganesh",
+  "description": "Chanda and expense ledger for festival youth groups",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FBF3E4",
+  "theme_color": "#D99A1B",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

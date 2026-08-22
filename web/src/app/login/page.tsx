@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
 
-export default function LoginPage() {
+function LoginForm() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(searchParams.get("error"));
 
   async function signInWithGoogle() {
     setError(null);
@@ -25,6 +27,17 @@ export default function LoginPage() {
   }
 
   return (
+    <div className="w-full max-w-sm flex flex-col gap-4">
+      {error && <p className="text-caption text-sindoor text-center">{error}</p>}
+      <Button onClick={signInWithGoogle} disabled={loading}>
+        {loading ? "Redirecting..." : "Continue with Google"}
+      </Button>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6">
       <div className="flex flex-col items-center gap-3">
         <OrgBrandMark size={64} />
@@ -34,12 +47,9 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <div className="w-full max-w-sm flex flex-col gap-4">
-        {error && <p className="text-caption text-sindoor text-center">{error}</p>}
-        <Button onClick={signInWithGoogle} disabled={loading}>
-          {loading ? "Redirecting..." : "Continue with Google"}
-        </Button>
-      </div>
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

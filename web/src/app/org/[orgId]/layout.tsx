@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
@@ -5,6 +6,17 @@ import { OrgNav } from "@/components/OrgNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SettingsLink } from "@/components/SettingsLink";
 import { RemindersLink } from "@/components/RemindersLink";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ orgId: string }>;
+}): Promise<Metadata> {
+  const { orgId } = await params;
+  // Per-org manifest so the installed home-screen icon matches this org's
+  // uploaded logo instead of the app-wide default (see /api/manifest/[orgId]).
+  return { manifest: `/api/manifest/${orgId}` };
+}
 
 export default async function OrgLayout({
   children,

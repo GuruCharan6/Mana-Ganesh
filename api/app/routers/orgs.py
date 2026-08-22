@@ -146,15 +146,16 @@ async def upload_logo(
         )
 
     admin = get_admin_client()
-    path = f"{org_id}/logo.{ext}"
+    # Unique path per upload — Supabase Storage's CDN caches by object path and
+    # ignores query strings, so overwriting a fixed path (with a `?t=` cache-bust
+    # on the URL) still served the old cached bytes. A new path forces a cache miss.
+    path = f"{org_id}/logo-{int(time.time())}.{ext}"
     admin.storage.from_(LOGO_BUCKET).upload(
         path,
         body,
         {"content-type": file.content_type, "upsert": "true"},
     )
-    public_url = admin.storage.from_(LOGO_BUCKET).get_public_url(path)
-    # Cache-bust so a replaced logo shows immediately in clients that cached the old URL.
-    logo_url = f"{public_url}?t={int(time.time())}"
+    logo_url = admin.storage.from_(LOGO_BUCKET).get_public_url(path)
 
     admin.table("organizations").update({"logo_url": logo_url}).eq("id", org_id).execute()
 

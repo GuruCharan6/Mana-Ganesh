@@ -29,3 +29,6 @@ __pycache__/
 
 # Local tooling config (not needed by other contributors)
 .claude/
+
+# Internal docs — not for the public repo
+docs/

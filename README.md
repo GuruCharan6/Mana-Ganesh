@@ -8,13 +8,9 @@ live numbers.
 **Stack:** Next.js 15 (App Router, TypeScript, Tailwind v4) frontend +
 FastAPI backend + Supabase (Postgres, Auth, Storage).
 
-Full product/behavior spec: [`docs/PRD.md`](docs/PRD.md) and
-[`docs/design-system.md`](docs/design-system.md) — but **read
-[`docs/SESSION_LOG.md`](docs/SESSION_LOG.md) first**, it documents every
-place the build deviated from those two docs on purpose (Google OAuth
-instead of phone/OTP, no green/red money coloring, Dashboard split into
-Home/History/Settings, multi-admin, in-kind donations + pledges, etc.) and
-is the authoritative source where they conflict.
+Auth is Google OAuth (not phone/OTP). Chanda and expense entries are
+immutable — corrections happen via a comment plus an additive adjustment
+entry, never an edit/delete.
 
 ---
 
@@ -24,7 +20,7 @@ is the authoritative source where they conflict.
 web/       Next.js frontend
 api/       FastAPI backend
 supabase/  SQL migrations (run 0001_init.sql against a fresh project)
-docs/      PRD, design system, session log
+assets/    Logo source art
 ```
 
 ---

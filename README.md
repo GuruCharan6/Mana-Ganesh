@@ -19,7 +19,7 @@ entry, never an edit/delete.
 ```
 web/       Next.js frontend
 api/       FastAPI backend
-supabase/  SQL migrations (run 0001_init.sql against a fresh project)
+supabase/  SQL migrations (run in order against a fresh project)
 assets/    Logo source art
 ```
 
@@ -28,8 +28,15 @@ assets/    Logo source art
 ## 1. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql)
-   — it's the full consolidated schema (tables + RLS policies).
+2. In the SQL editor, run every file in `supabase/migrations/` **in filename
+   order** (not `_archive/` — those are superseded history, kept for
+   reference only):
+   - [`0001_init.sql`](supabase/migrations/0001_init.sql) — the full
+     consolidated schema (tables + RLS policies).
+   - [`0002_pledge_area_bookref_amount.sql`](supabase/migrations/0002_pledge_area_bookref_amount.sql)
+     — adds `area`, `book_reference`, `promised_amount` to
+     `chanda_pledges` so "Promised for later" captures the same fields
+     as "Received now".
 3. **Enable Google OAuth**: Authentication → Providers → Google. You'll need
    a Google Cloud OAuth client (Web application type):
    - Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
@@ -117,11 +124,26 @@ takes ~30-50s to wake up. Fine for a festival committee tool, worth knowing.
 
 ---
 
-## Known limitations (see `docs/SESSION_LOG.md` for full list)
+## Keeping the backend warm
+
+Render's free tier sleeps the backend after ~15 min idle (first request
+after that takes 30-50s to wake up). To avoid that, set up a free external
+cron to hit `GET /health` every minute — e.g. [cron-job.org](https://cron-job.org):
+create an account, add a job pointed at `https://<your-render-url>/health`,
+schedule it for 1-minute intervals.
+
+---
+
+## Known limitations
 
 - No automated tests — verified manually.
 - No backend rate limiting — fine for a closed committee tool, not if the
   URL becomes public.
 - PWA needs one online visit before it works offline (no cached app-shell
   for a true cold start).
-- iOS install is manual (Share → Add to Home Screen), no in-app prompt.
+- iOS Safari has no install prompt API at all — install there is always
+  manual (Share → Add to Home Screen). Android/Chrome shows a proactive
+  "Install App" button on the login screen instead.
+- Each member's installed home-screen icon is fixed at the time they
+  install — if the org logo changes later, everyone who already installed
+  has to uninstall and reinstall individually to pick up the new icon.

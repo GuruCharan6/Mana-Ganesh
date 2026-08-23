@@ -18,8 +18,8 @@ export function buildThankYouUrl(
       : itemDescription
     : formatAmount(amount);
   const message =
-    `Namaste Sir/Madam ${donorName}! 🙏 Thank you for your generous chanda of ${gift} ` +
-    `for Ganesh Chaturthi. Your support means a lot to us.\n\n- ${orgName}`;
+    `Namaste ${donorName} Sir/Madam! Thank you for your generous chanda of ${gift} ` +
+    `for Ganesh Chaturthi. Your support means a lot to us.\n- ${orgName}`;
   return `https://wa.me/${toWaNumber(donorMobile)}?text=${encodeURIComponent(message)}`;
 }
 

@@ -15,11 +15,13 @@ class UpdateOrgRequest(BaseModel):
 class AddMemberRequest(BaseModel):
     name: str
     email: str
+    mobile_number: str = Field(min_length=1)
 
 
 class UpdateMemberRequest(BaseModel):
     name: str | None = None
     email: str | None = None
+    mobile_number: str | None = None
     access_level: str | None = None  # 'full' | 'view_only'
     role: str | None = None  # 'admin' | 'member' — promote/demote
 

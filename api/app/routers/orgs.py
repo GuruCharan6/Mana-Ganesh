@@ -226,6 +226,7 @@ def add_member(
                     "org_id": org_id,
                     "name": body.name,
                     "email": body.email,
+                    "mobile_number": body.mobile_number,
                     "status": "pending",
                     "role": "member",
                     "access_level": "full",
@@ -297,7 +298,7 @@ def update_member(
 
     is_admin_row = member["role"] == "admin" and "role" not in update
 
-    if body.name is not None or body.email is not None:
+    if body.name is not None or body.email is not None or body.mobile_number is not None:
         if member["status"] != "pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -307,6 +308,8 @@ def update_member(
             update["name"] = body.name
         if body.email is not None:
             update["email"] = body.email
+        if body.mobile_number is not None:
+            update["mobile_number"] = body.mobile_number
 
     if body.access_level is not None:
         if is_admin_row or becoming_admin:

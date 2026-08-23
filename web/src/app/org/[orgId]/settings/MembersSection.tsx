@@ -9,6 +9,7 @@ type Member = {
   id: string;
   name: string;
   email: string;
+  mobile_number: string | null;
   status: "pending" | "joined";
   role: "admin" | "member";
   access_level: "full" | "view_only";
@@ -22,6 +23,7 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [mobile, setMobile] = useState("");
   const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
@@ -39,8 +41,13 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
 
   async function addMember() {
     setError(null);
+    const mobileDigits = mobile.replace(/\D/g, "");
     if (!name.trim() || !/^\S+@\S+\.\S+$/.test(email)) {
       setError("Enter a name and valid email address");
+      return;
+    }
+    if (mobileDigits.length !== 10) {
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
     setAdding(true);
@@ -48,9 +55,11 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
       await apiPost(`/orgs/${orgId}/members`, {
         name: name.trim(),
         email: email.trim(),
+        mobile_number: mobileDigits,
       });
       setName("");
       setEmail("");
+      setMobile("");
       setShowAdd(false);
       await load();
     } catch (e) {
@@ -91,12 +100,18 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
     }
   }
 
-  async function saveEdit(m: Member, newName: string, newEmail: string) {
+  async function saveEdit(m: Member, newName: string, newEmail: string, newMobile: string) {
     setError(null);
+    const mobileDigits = newMobile.replace(/\D/g, "");
+    if (mobileDigits.length !== 10) {
+      setError("Enter a valid 10-digit mobile number");
+      return;
+    }
     try {
       await apiPatch(`/orgs/${orgId}/members/${m.id}`, {
         name: newName.trim(),
         email: newEmail.trim(),
+        mobile_number: mobileDigits,
       });
       setEditingId(null);
       await load();
@@ -134,6 +149,18 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
             onChange={(e) => setEmail(e.target.value)}
             className="rounded-lg border border-line px-3 py-2.5 text-body outline-none"
           />
+          <div className="flex items-center rounded-lg border border-line overflow-hidden">
+            <span className="px-3 text-body text-ink-muted border-r border-line py-2.5">+91</span>
+            <input
+              type="tel"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="Mobile number"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
+              className="flex-1 px-3 py-2.5 text-body outline-none"
+            />
+          </div>
           <Button onClick={addMember} disabled={adding}>
             {adding ? "Adding..." : "Add Member"}
           </Button>
@@ -152,7 +179,7 @@ export function MembersSection({ orgId, canManage }: { orgId: string; canManage:
             editing={editingId === m.id}
             onEdit={() => setEditingId(m.id)}
             onCancelEdit={() => setEditingId(null)}
-            onSaveEdit={(n, em) => saveEdit(m, n, em)}
+            onSaveEdit={(n, em, mob) => saveEdit(m, n, em, mob)}
             onToggleAccess={() => toggleAccess(m)}
             onMakeAdmin={() => setRole(m, "admin")}
             onRemoveAdmin={() => setRole(m, "member")}
@@ -181,7 +208,7 @@ function MemberRow({
   editing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
-  onSaveEdit: (name: string, email: string) => void;
+  onSaveEdit: (name: string, email: string, mobile: string) => void;
   onToggleAccess: () => void;
   onMakeAdmin: () => void;
   onRemoveAdmin: () => void;
@@ -189,6 +216,7 @@ function MemberRow({
 }) {
   const [name, setName] = useState(member.name);
   const [email, setEmail] = useState(member.email);
+  const [mobile, setMobile] = useState(member.mobile_number ?? "");
 
   if (editing) {
     return (
@@ -203,8 +231,19 @@ function MemberRow({
           onChange={(e) => setEmail(e.target.value)}
           className="rounded-lg border border-line px-3 py-2 text-body outline-none"
         />
+        <div className="flex items-center rounded-lg border border-line overflow-hidden">
+          <span className="px-3 text-body text-ink-muted border-r border-line py-2">+91</span>
+          <input
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            value={mobile}
+            onChange={(e) => setMobile(e.target.value)}
+            className="flex-1 px-3 py-2 text-body outline-none"
+          />
+        </div>
         <div className="flex gap-2">
-          <Button className="flex-1" onClick={() => onSaveEdit(name, email)}>
+          <Button className="flex-1" onClick={() => onSaveEdit(name, email, mobile)}>
             Save
           </Button>
           <Button variant="secondary" className="flex-1" onClick={onCancelEdit}>
@@ -221,6 +260,11 @@ function MemberRow({
         <div className="flex-1 min-w-0">
           <p className="text-body-strong truncate">{member.name}</p>
           <p className="text-caption text-ink-muted truncate">{member.email}</p>
+          {member.mobile_number && (
+            <a href={`tel:+91${member.mobile_number}`} className="text-caption text-peacock">
+              +91 {member.mobile_number}
+            </a>
+          )}
         </div>
         <Badge tone={member.status === "pending" ? "pending" : "joined"} />
         {member.role !== "admin" && <Badge tone={member.access_level} />}

@@ -136,6 +136,9 @@ function SingleEntryForm({
           donor_mobile: mobile,
           item_description: hasItem ? item.trim() : null,
           promised_on: collectedOn,
+          area: area.trim() || null,
+          book_reference: bookReference.trim() || null,
+          promised_amount: parseFloat(amount) || null,
         });
         onSaved({
           donorName: donorName.trim(),
@@ -223,17 +226,23 @@ function SingleEntryForm({
         />
       </Field>
 
-      {promiseMode === "now" && (
-        <Field label={hasItem ? "Estimated value in ₹ (optional)" : "Amount (₹)"}>
-          <input
-            type="number"
-            inputMode="decimal"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="rounded-lg border border-line px-3 py-3 text-body font-mono outline-none"
-          />
-        </Field>
-      )}
+      <Field
+        label={
+          promiseMode === "later"
+            ? "Promised amount in ₹ (optional)"
+            : hasItem
+              ? "Estimated value in ₹ (optional)"
+              : "Amount (₹)"
+        }
+      >
+        <input
+          type="number"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="rounded-lg border border-line px-3 py-3 text-body font-mono outline-none"
+        />
+      </Field>
 
       <Field label={promiseMode === "later" ? "Promised on" : "Collected on"}>
         <input
@@ -245,25 +254,21 @@ function SingleEntryForm({
         />
       </Field>
 
-      {promiseMode === "now" && (
-        <>
-          <Field label="Area / address (optional)">
-            <input
-              value={area}
-              onChange={(e) => setArea(e.target.value)}
-              className="rounded-lg border border-line px-3 py-3 text-body outline-none"
-            />
-          </Field>
+      <Field label="Area / address (optional)">
+        <input
+          value={area}
+          onChange={(e) => setArea(e.target.value)}
+          className="rounded-lg border border-line px-3 py-3 text-body outline-none"
+        />
+      </Field>
 
-          <Field label="Book reference (optional)">
-            <input
-              value={bookReference}
-              onChange={(e) => setBookReference(e.target.value)}
-              className="rounded-lg border border-line px-3 py-3 text-body outline-none"
-            />
-          </Field>
-        </>
-      )}
+      <Field label="Book reference (optional)">
+        <input
+          value={bookReference}
+          onChange={(e) => setBookReference(e.target.value)}
+          className="rounded-lg border border-line px-3 py-3 text-body outline-none"
+        />
+      </Field>
 
       <Field label="Have they given it, or promised for later?">
         <div className="flex gap-2">
@@ -371,6 +376,9 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
             donor_mobile: mobile,
             item_description: hasItem ? r.item.trim() : null,
             promised_on: r.collectedOn,
+            area: r.area.trim() || null,
+            book_reference: r.bookReference.trim() || null,
+            promised_amount: parseFloat(r.amount) || null,
           });
         } catch (e) {
           failures.push(
@@ -451,16 +459,20 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
               onChange={(e) => update(r.key, { item: e.target.value })}
               className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
-            {r.promiseMode === "now" && (
-              <input
-                placeholder={r.item.trim() ? "Estimated value in ₹ (optional)" : "Amount"}
-                type="number"
-                inputMode="decimal"
-                value={r.amount}
-                onChange={(e) => update(r.key, { amount: e.target.value })}
-                className="w-full rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
-              />
-            )}
+            <input
+              placeholder={
+                r.promiseMode === "later"
+                  ? "Promised amount in ₹ (optional)"
+                  : r.item.trim()
+                    ? "Estimated value in ₹ (optional)"
+                    : "Amount"
+              }
+              type="number"
+              inputMode="decimal"
+              value={r.amount}
+              onChange={(e) => update(r.key, { amount: e.target.value })}
+              className="w-full rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
+            />
             <input
               type="date"
               value={r.collectedOn}
@@ -468,22 +480,18 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
               onChange={(e) => update(r.key, { collectedOn: e.target.value })}
               className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
-            {r.promiseMode === "now" && (
-              <>
-                <input
-                  placeholder="Area (optional)"
-                  value={r.area}
-                  onChange={(e) => update(r.key, { area: e.target.value })}
-                  className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
-                />
-                <input
-                  placeholder="Book reference (optional)"
-                  value={r.bookReference}
-                  onChange={(e) => update(r.key, { bookReference: e.target.value })}
-                  className="rounded-lg border border-line px-3 py-2 text-body outline-none"
-                />
-              </>
-            )}
+            <input
+              placeholder="Area (optional)"
+              value={r.area}
+              onChange={(e) => update(r.key, { area: e.target.value })}
+              className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
+            />
+            <input
+              placeholder="Book reference (optional)"
+              value={r.bookReference}
+              onChange={(e) => update(r.key, { bookReference: e.target.value })}
+              className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+            />
             <div className="flex gap-2">
               <button
                 onClick={() => update(r.key, { promiseMode: "now" })}

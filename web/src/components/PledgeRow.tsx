@@ -11,6 +11,9 @@ export type Pledge = {
   donor_mobile: string | null;
   item_description: string | null;
   promised_on: string;
+  area: string | null;
+  book_reference: string | null;
+  promised_amount: number | null;
 };
 
 export function PledgeRow({
@@ -62,7 +65,10 @@ export function PledgeRow({
         <p className="text-body-strong">{pledge.donor_name}</p>
       </div>
       <p className="text-caption text-ink-muted">
-        {pledge.item_description || "Cash"} · promised {formatDate(pledge.promised_on)}
+        {pledge.item_description || "Cash"}
+        {pledge.promised_amount ? ` (₹${pledge.promised_amount})` : ""} · promised{" "}
+        {formatDate(pledge.promised_on)}
+        {pledge.area ? ` · ${pledge.area}` : ""}
       </p>
 
       {mode === "none" && (

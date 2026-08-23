@@ -49,6 +49,9 @@ def create_pledge(
                 "donor_mobile": body.donor_mobile,
                 "item_description": body.item_description,
                 "promised_on": (body.promised_on or date.today()).isoformat(),
+                "area": body.area,
+                "book_reference": body.book_reference,
+                "promised_amount": body.promised_amount,
                 "created_by": user.id,
             }
         )
@@ -77,6 +80,8 @@ def resolve_pledge_collected(
                 "donor_mobile": pledge["donor_mobile"],
                 "amount": body.value or 0,
                 "collected_on": (body.collected_on or date.today()).isoformat(),
+                "area": pledge.get("area"),
+                "book_reference": pledge.get("book_reference"),
                 "item_description": pledge["item_description"],
                 "pledge_id": pledge["id"],
                 "collected_by": user.id,
@@ -112,6 +117,8 @@ def resolve_pledge_cash(
                 "donor_mobile": pledge["donor_mobile"],
                 "amount": body.amount,
                 "collected_on": (body.collected_on or date.today()).isoformat(),
+                "area": pledge.get("area"),
+                "book_reference": pledge.get("book_reference"),
                 "item_description": pledge["item_description"],  # what was originally promised, even though cash was given instead
                 "pledge_id": pledge["id"],
                 "collected_by": user.id,

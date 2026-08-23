@@ -85,6 +85,9 @@ class PledgeCreate(BaseModel):
     donor_mobile: str | None = None
     item_description: str | None = None  # null = cash promised for later, no item involved
     promised_on: date | None = None
+    area: str | None = None
+    book_reference: str | None = None
+    promised_amount: float | None = None  # informational only; resolving asks for the actual value
 
 
 class PledgeResolveCollected(BaseModel):

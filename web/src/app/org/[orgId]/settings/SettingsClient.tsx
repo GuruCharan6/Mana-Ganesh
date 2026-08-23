@@ -6,14 +6,17 @@ import { apiGet, apiPatch, apiUpload, ApiError } from "@/lib/api";
 import { formatAmount } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
+import { createClient } from "@/lib/supabase/client";
 import { MembersSection } from "./MembersSection";
 
 export function SettingsClient({
   orgId,
+  isAdmin,
   initialName,
   initialLogoUrl,
 }: {
   orgId: string;
+  isAdmin: boolean;
   initialName: string;
   initialLogoUrl: string | null;
 }) {
@@ -22,6 +25,14 @@ export function SettingsClient({
   );
   const [error, setError] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function logout() {
+    setLoggingOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/login";
+  }
 
   useEffect(() => {
     apiGet(`/orgs/${orgId}/dashboard`)
@@ -49,7 +60,9 @@ export function SettingsClient({
       </div>
       {error && <p className="text-caption text-sindoor">{error}</p>}
 
-      <OrgIdentitySection orgId={orgId} initialName={initialName} initialLogoUrl={initialLogoUrl} />
+      {isAdmin && (
+        <OrgIdentitySection orgId={orgId} initialName={initialName} initialLogoUrl={initialLogoUrl} />
+      )}
 
       <section className="flex flex-col gap-3">
         <button
@@ -59,8 +72,12 @@ export function SettingsClient({
           <span className="text-body-strong">Members</span>
           <span className="text-ink-muted text-body">{membersOpen ? "▾" : "▸"}</span>
         </button>
-        {membersOpen && <MembersSection orgId={orgId} />}
+        {membersOpen && <MembersSection orgId={orgId} canManage={isAdmin} />}
       </section>
+
+      <Button variant="secondary" onClick={logout} disabled={loggingOut}>
+        {loggingOut ? "Logging out..." : "Log Out"}
+      </Button>
     </main>
   );
 }

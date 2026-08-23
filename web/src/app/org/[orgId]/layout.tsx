@@ -47,8 +47,7 @@ export default async function OrgLayout({
 
   if (!org || !member) notFound();
 
-  const isAdmin = member.role === "admin";
-  const canWrite = isAdmin || member.access_level === "full";
+  const canWrite = member.role === "admin" || member.access_level === "full";
 
   return (
     <div className="flex flex-1 flex-col">
@@ -59,8 +58,10 @@ export default async function OrgLayout({
           <p className="text-caption text-ink-muted truncate">Welcome, {member.name}</p>
         </div>
         {canWrite && <RemindersLink orgId={orgId} />}
-        {isAdmin && <SettingsLink orgId={orgId} />}
-        <LogoutButton />
+        {canWrite && <SettingsLink orgId={orgId} />}
+        {/* Full Access and Admin log out from within Settings instead —
+            View Only has no Settings access, so it needs the header icon. */}
+        {!canWrite && <LogoutButton />}
       </header>
       <OfflineBanner orgId={orgId} />
       <div

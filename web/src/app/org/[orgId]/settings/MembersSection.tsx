@@ -14,7 +14,7 @@ type Member = {
   access_level: "full" | "view_only";
 };
 
-export function MembersSection({ orgId }: { orgId: string }) {
+export function MembersSection({ orgId, canManage }: { orgId: string; canManage: boolean }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -107,16 +107,18 @@ export function MembersSection({ orgId }: { orgId: string }) {
 
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex items-center justify-end">
-        <button
-          onClick={() => setShowAdd((v) => !v)}
-          className="text-caption text-peacock shrink-0"
-        >
-          {showAdd ? "Cancel" : "+ Add"}
-        </button>
-      </div>
+      {canManage && (
+        <div className="flex items-center justify-end">
+          <button
+            onClick={() => setShowAdd((v) => !v)}
+            className="text-caption text-peacock shrink-0"
+          >
+            {showAdd ? "Cancel" : "+ Add"}
+          </button>
+        </div>
+      )}
 
-      {showAdd && (
+      {canManage && showAdd && (
         <div className="flex flex-col gap-3 border border-line rounded-lg bg-surface p-4">
           <input
             type="text"
@@ -146,6 +148,7 @@ export function MembersSection({ orgId }: { orgId: string }) {
           <MemberRow
             key={m.id}
             member={m}
+            canManage={canManage}
             editing={editingId === m.id}
             onEdit={() => setEditingId(m.id)}
             onCancelEdit={() => setEditingId(null)}
@@ -163,6 +166,7 @@ export function MembersSection({ orgId }: { orgId: string }) {
 
 function MemberRow({
   member,
+  canManage,
   editing,
   onEdit,
   onCancelEdit,
@@ -173,6 +177,7 @@ function MemberRow({
   onRemove,
 }: {
   member: Member;
+  canManage: boolean;
   editing: boolean;
   onEdit: () => void;
   onCancelEdit: () => void;
@@ -221,31 +226,33 @@ function MemberRow({
         {member.role !== "admin" && <Badge tone={member.access_level} />}
       </div>
 
-      <div className="flex gap-x-4 gap-y-1 flex-wrap">
-        {member.status === "pending" && (
-          <button onClick={onEdit} className="text-caption text-peacock">
-            Edit
-          </button>
-        )}
-        {member.status === "joined" && member.role !== "admin" && (
-          <>
-            <button onClick={onToggleAccess} className="text-caption text-peacock">
-              {member.access_level === "full" ? "Set View Only" : "Set Full Access"}
+      {canManage && (
+        <div className="flex gap-x-4 gap-y-1 flex-wrap">
+          {member.status === "pending" && (
+            <button onClick={onEdit} className="text-caption text-peacock">
+              Edit
             </button>
-            <button onClick={onMakeAdmin} className="text-caption text-peacock">
-              Make Admin
+          )}
+          {member.status === "joined" && member.role !== "admin" && (
+            <>
+              <button onClick={onToggleAccess} className="text-caption text-peacock">
+                {member.access_level === "full" ? "Set View Only" : "Set Full Access"}
+              </button>
+              <button onClick={onMakeAdmin} className="text-caption text-peacock">
+                Make Admin
+              </button>
+            </>
+          )}
+          {member.status === "joined" && member.role === "admin" && (
+            <button onClick={onRemoveAdmin} className="text-caption text-peacock">
+              Remove Admin
             </button>
-          </>
-        )}
-        {member.status === "joined" && member.role === "admin" && (
-          <button onClick={onRemoveAdmin} className="text-caption text-peacock">
-            Remove Admin
+          )}
+          <button onClick={onRemove} className="text-caption text-sindoor">
+            Remove
           </button>
-        )}
-        <button onClick={onRemove} className="text-caption text-sindoor">
-          Remove
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

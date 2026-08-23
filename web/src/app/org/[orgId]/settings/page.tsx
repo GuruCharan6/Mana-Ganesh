@@ -18,7 +18,7 @@ export default async function SettingsPage({
   const [{ data: member }, { data: org }] = await Promise.all([
     supabase
       .from("org_members")
-      .select("role")
+      .select("role, access_level")
       .eq("org_id", orgId)
       .eq("user_id", user.id)
       .eq("status", "joined")
@@ -27,13 +27,22 @@ export default async function SettingsPage({
   ]);
 
   if (!member || !org) notFound();
-  if (member.role !== "admin") {
+  const isAdmin = member.role === "admin";
+  const canWrite = isAdmin || member.access_level === "full";
+  if (!canWrite) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 text-center">
-        <p className="text-body text-sindoor">Admin access required.</p>
+        <p className="text-body text-sindoor">Full access required.</p>
       </main>
     );
   }
 
-  return <SettingsClient orgId={orgId} initialName={org.name} initialLogoUrl={org.logo_url} />;
+  return (
+    <SettingsClient
+      orgId={orgId}
+      isAdmin={isAdmin}
+      initialName={org.name}
+      initialLogoUrl={org.logo_url}
+    />
+  );
 }

@@ -121,12 +121,12 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
         className="rounded-lg border border-line px-3 py-2.5 text-body outline-none"
       />
 
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-1.5 flex-nowrap overflow-x-auto -mx-1 px-1">
         {(["all", "collected", "later"] as StatusFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`rounded-lg border px-3 py-1.5 text-caption font-semibold capitalize ${
+            className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-caption font-semibold capitalize ${
               filter === f ? "border-marigold bg-marigold/10 text-ink" : "border-line text-ink-muted"
             }`}
           >
@@ -135,11 +135,11 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
         ))}
         <button
           onClick={() => setItemsOnly((v) => !v)}
-          className={`rounded-lg border px-3 py-1.5 text-caption font-semibold ${
+          className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-caption font-semibold ${
             itemsOnly ? "border-marigold bg-marigold/10 text-ink" : "border-line text-ink-muted"
           }`}
         >
-          Items only
+          Items
         </button>
       </div>
 

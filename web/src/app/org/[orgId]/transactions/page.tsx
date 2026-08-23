@@ -11,7 +11,7 @@ import { useOrgTransactions } from "@/lib/useOrgTransactions";
 
 export default function TransactionsPage() {
   const { orgId } = useParams<{ orgId: string }>();
-  const { transactions, loaded, error } = useOrgTransactions(orgId);
+  const { transactions, loaded, error, reload } = useOrgTransactions(orgId);
 
   const [memberFilter, setMemberFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all"); // all | chanda | <expense category>
@@ -62,24 +62,37 @@ export default function TransactionsPage() {
             </option>
           ))}
         </select>
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none"
-        />
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none"
-        />
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="text-badge text-ink-muted uppercase tracking-[0.02em]">From</span>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none"
+          />
+        </label>
+        <label className="flex flex-col gap-1 min-w-0">
+          <span className="text-badge text-ink-muted uppercase tracking-[0.02em]">To</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-full min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none"
+          />
+        </label>
       </div>
 
-      {error && <p className="text-caption text-sindoor">{error}</p>}
+      {error && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-caption text-sindoor">{error}</p>
+          <button onClick={reload} className="text-caption text-peacock font-semibold shrink-0">
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-col">
-        {!loaded && <p className="text-body text-ink-muted py-4">Loading…</p>}
+        {!loaded && !error && <p className="text-body text-ink-muted py-4">Loading…</p>}
         {loaded && filtered.length === 0 && (
           <p className="text-body text-ink-muted py-4">No transactions match these filters.</p>
         )}

@@ -6,6 +6,7 @@ import { OrgNav } from "@/components/OrgNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SettingsLink } from "@/components/SettingsLink";
 import { RemindersLink } from "@/components/RemindersLink";
+import { LogoutButton } from "@/components/LogoutButton";
 
 export async function generateMetadata({
   params,
@@ -59,6 +60,7 @@ export default async function OrgLayout({
         </div>
         {canWrite && <RemindersLink orgId={orgId} />}
         {isAdmin && <SettingsLink orgId={orgId} />}
+        <LogoutButton />
       </header>
       <OfflineBanner orgId={orgId} />
       <div

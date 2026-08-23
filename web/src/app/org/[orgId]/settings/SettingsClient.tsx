@@ -7,7 +7,6 @@ import { formatAmount } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
 import { MembersSection } from "./MembersSection";
-import { createClient } from "@/lib/supabase/client";
 
 export function SettingsClient({
   orgId,
@@ -23,14 +22,6 @@ export function SettingsClient({
   );
   const [error, setError] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  async function logout() {
-    setLoggingOut(true);
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    window.location.href = "/login";
-  }
 
   useEffect(() => {
     apiGet(`/orgs/${orgId}/dashboard`)
@@ -70,10 +61,6 @@ export function SettingsClient({
         </button>
         {membersOpen && <MembersSection orgId={orgId} />}
       </section>
-
-      <Button variant="secondary" onClick={logout} disabled={loggingOut}>
-        {loggingOut ? "Logging out..." : "Log Out"}
-      </Button>
     </main>
   );
 }

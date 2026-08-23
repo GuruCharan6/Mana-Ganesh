@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
+import { InstallButton } from "@/components/InstallButton";
 
 function LoginForm() {
   const supabase = createClient();
@@ -32,6 +33,7 @@ function LoginForm() {
       <Button onClick={signInWithGoogle} disabled={loading}>
         {loading ? "Redirecting..." : "Continue with Google"}
       </Button>
+      <InstallButton />
     </div>
   );
 }

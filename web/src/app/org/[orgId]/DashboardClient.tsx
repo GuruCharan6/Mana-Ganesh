@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiGet, ApiError } from "@/lib/api";
 import { formatDate } from "@/lib/format";
@@ -17,18 +17,23 @@ type Announcement = {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
-export function DashboardClient({ orgId }: { orgId: string }) {
+export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: boolean }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const { transactions, loaded } = useOrgTransactions(orgId);
+  const [annError, setAnnError] = useState<string | null>(null);
+  const { transactions, loaded, error: txnError, reload } = useOrgTransactions(orgId);
 
-  useEffect(() => {
+  const loadAnnouncements = useCallback(() => {
+    setAnnError(null);
     apiGet(`/orgs/${orgId}/announcements`)
       .then((a) => setAnnouncements(a.slice(0, 3)))
       .catch((err) =>
-        setError(err instanceof ApiError ? err.message : "Could not load announcements")
+        setAnnError(err instanceof ApiError ? err.message : "Could not load announcements")
       );
   }, [orgId]);
+
+  useEffect(() => {
+    loadAnnouncements();
+  }, [loadAnnouncements]);
 
   const today = todayStr();
   const todaysTxns = transactions.filter((t) => t.enteredAt.slice(0, 10) === today);
@@ -36,8 +41,16 @@ export function DashboardClient({ orgId }: { orgId: string }) {
   const todaySection = (
     <section className="flex flex-col">
       <h1 className="font-display text-heading-1 mb-3">Today</h1>
-      {!loaded && <p className="text-body text-ink-muted py-2">Loading…</p>}
-      {loaded && todaysTxns.length === 0 && (
+      {!loaded && !txnError && <p className="text-body text-ink-muted py-2">Loading…</p>}
+      {txnError && (
+        <div className="flex items-center justify-between gap-3 py-2">
+          <p className="text-caption text-sindoor">{txnError}</p>
+          <button onClick={reload} className="text-caption text-peacock font-semibold shrink-0">
+            Retry
+          </button>
+        </div>
+      )}
+      {loaded && !txnError && todaysTxns.length === 0 && (
         <p className="text-body text-ink-muted py-2">Nothing logged yet today.</p>
       )}
       {todaysTxns.map((t) => (
@@ -64,9 +77,11 @@ export function DashboardClient({ orgId }: { orgId: string }) {
       <div className="flex items-center justify-between">
         <h2 className="text-heading-2 font-sans">Announcements</h2>
         <div className="flex items-center gap-3">
-          <Link href={`/org/${orgId}/announcements`} className="text-caption text-peacock">
-            + Add
-          </Link>
+          {canWrite && (
+            <Link href={`/org/${orgId}/announcements`} className="text-caption text-peacock">
+              + Add
+            </Link>
+          )}
           {announcements.length > 0 && (
             <Link href={`/org/${orgId}/announcements`} className="text-caption text-peacock">
               View all →
@@ -74,8 +89,15 @@ export function DashboardClient({ orgId }: { orgId: string }) {
           )}
         </div>
       </div>
-      {error && <p className="text-caption text-sindoor">{error}</p>}
-      {announcements.length === 0 && !error && (
+      {annError && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-caption text-sindoor">{annError}</p>
+          <button onClick={loadAnnouncements} className="text-caption text-peacock font-semibold shrink-0">
+            Retry
+          </button>
+        </div>
+      )}
+      {announcements.length === 0 && !annError && (
         <p className="text-caption text-ink-muted">No announcements yet.</p>
       )}
       {announcements.map((a) => (

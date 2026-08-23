@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiGet, ApiError } from "@/lib/api";
 
 type ChandaEntry = {
@@ -43,7 +43,8 @@ export function useOrgTransactions(orgId: string) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
+    setError(null);
     Promise.all([apiGet(`/orgs/${orgId}/chanda`), apiGet(`/orgs/${orgId}/expenses`)])
       .then(([c, e]) => {
         setChanda(c);
@@ -51,10 +52,16 @@ export function useOrgTransactions(orgId: string) {
         setLoaded(true);
       })
       .catch((err) => {
+        // Leave `loaded` false and previous data untouched on failure — a
+        // transient fetch error (cold-start timeout, network blip) must never
+        // render as "nothing logged yet", which looks like real, alarming data loss.
         setError(err instanceof ApiError ? err.message : "Could not load transactions (offline?)");
-        setLoaded(true);
       });
   }, [orgId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const transactions: Txn[] = useMemo(() => {
     const c: Txn[] = chanda.map((e) => ({
@@ -91,5 +98,5 @@ export function useOrgTransactions(orgId: string) {
     );
   }, [chanda, expenses, orgId]);
 
-  return { transactions, loaded, error };
+  return { transactions, loaded, error, reload: load };
 }

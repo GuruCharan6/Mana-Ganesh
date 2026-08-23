@@ -17,13 +17,14 @@ export default async function OrgDashboardPage({
 
   const { data: member } = await supabase
     .from("org_members")
-    .select("id")
+    .select("role, access_level")
     .eq("org_id", orgId)
     .eq("user_id", user.id)
     .eq("status", "joined")
     .maybeSingle();
 
   if (!member) notFound();
+  const canWrite = member.role === "admin" || member.access_level === "full";
 
-  return <DashboardClient orgId={orgId} />;
+  return <DashboardClient orgId={orgId} canWrite={canWrite} />;
 }

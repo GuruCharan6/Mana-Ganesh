@@ -72,6 +72,24 @@ def link_pending_member(user: AuthUser = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 
 
+@router.get("/orgs/{org_id}/public-brand")
+def get_public_brand(org_id: str):
+    # Deliberately unauthenticated — the PWA manifest (name + icon) must be
+    # fetchable by Chrome/Android's WebAPK install pipeline, which has no
+    # user session. Only non-sensitive branding fields are exposed here.
+    admin = get_admin_client()
+    res = (
+        admin.table("organizations")
+        .select("name, logo_url")
+        .eq("id", org_id)
+        .limit(1)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    return res.data[0]
+
+
 @router.post("/orgs", status_code=status.HTTP_201_CREATED)
 def create_org(body: CreateOrgRequest, user: AuthUser = Depends(get_current_user)):
     admin = get_admin_client()

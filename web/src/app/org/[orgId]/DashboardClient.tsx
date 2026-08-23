@@ -69,7 +69,7 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
         </div>
       )}
       {loaded && !txnError && todayEmpty && (
-        <p className="text-body text-ink-muted py-2">Nothing logged yet today.</p>
+        <p className="text-body text-ink-muted py-2">No transactions today</p>
       )}
       {todayItems.map((item) =>
         item.kind === "txn" ? (
@@ -138,7 +138,7 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
         </div>
       )}
       {announcements.length === 0 && !annError && (
-        <p className="text-caption text-ink-muted">No announcements yet.</p>
+        <p className="text-caption text-ink-muted">No announcements</p>
       )}
       {announcements.map((a) => (
         <div key={a.id} className="border-b border-line pb-2">

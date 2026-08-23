@@ -256,16 +256,20 @@ function MemberRow({
 
   return (
     <div className="flex flex-col gap-2 border-b border-line py-3">
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-body-strong truncate">{member.name}</p>
-          <p className="text-caption text-ink-muted truncate">{member.email}</p>
-          {member.mobile_number && (
-            <a href={`tel:+91${member.mobile_number}`} className="text-caption text-peacock">
-              +91 {member.mobile_number}
-            </a>
-          )}
-        </div>
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <p className="text-body-strong truncate">{member.name}</p>
+        <p className="text-caption text-ink-muted break-all">{member.email}</p>
+        {member.mobile_number && (
+          <a
+            href={`tel:+91${member.mobile_number}`}
+            className="text-caption text-peacock whitespace-nowrap"
+          >
+            +91 {member.mobile_number}
+          </a>
+        )}
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
         <Badge tone={member.status === "pending" ? "pending" : "joined"} />
         {member.role !== "admin" && <Badge tone={member.access_level} />}
       </div>

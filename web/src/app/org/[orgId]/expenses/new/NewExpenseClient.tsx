@@ -21,11 +21,14 @@ export function NewExpenseClient() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const isOther = category === "Other";
+
   async function save() {
     setError(null);
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return setError("Enter a valid amount");
     if (!expenseDate) return setError("Date is required");
+    if (isOther && !vendorName.trim()) return setError("Describe what this expense was for");
 
     setSaving(true);
     await addToOutbox({
@@ -64,8 +67,9 @@ export function NewExpenseClient() {
         </select>
       </Field>
 
-      <Field label="Vendor / payee name (optional)">
+      <Field label={isOther ? "What was this for?" : "Vendor / payee name (optional)"}>
         <input
+          placeholder={isOther ? "Describe what this expense was for" : undefined}
           value={vendorName}
           onChange={(e) => setVendorName(e.target.value)}
           className="rounded-lg border border-line px-3 py-3 text-body outline-none"

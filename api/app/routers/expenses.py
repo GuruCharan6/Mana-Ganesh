@@ -86,6 +86,11 @@ async def create_expense(
 
     if amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Amount must be positive")
+    if category == "Other" and not (vendor_name and vendor_name.strip()):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Describe what this expense was for",
+        )
 
     admin = get_admin_client()
 

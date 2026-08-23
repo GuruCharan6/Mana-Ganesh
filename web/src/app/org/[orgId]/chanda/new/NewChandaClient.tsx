@@ -303,6 +303,8 @@ type Row = {
   collectedOn: string;
   area: string;
   bookReference: string;
+  item: string;
+  promiseMode: "now" | "later";
 };
 
 function newRow(collectedOn: string): Row {
@@ -314,6 +316,8 @@ function newRow(collectedOn: string): Row {
     collectedOn,
     area: "",
     bookReference: "",
+    item: "",
+    promiseMode: "now",
   };
 }
 
@@ -337,7 +341,7 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
 
   async function saveAll() {
     setError(null);
-    const filled = rows.filter((r) => r.donorName.trim() || r.amount.trim());
+    const filled = rows.filter((r) => r.donorName.trim() || r.amount.trim() || r.item.trim());
     if (filled.length === 0) return setError("Add at least one row");
 
     for (const r of filled) {
@@ -345,13 +349,37 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
       const mobileDigits = r.donorMobile.replace(/\D/g, "");
       if (mobileDigits.length > 0 && mobileDigits.length !== 10)
         return setError(`Mobile number for ${r.donorName} should be 10 digits, or left blank`);
-      const amt = parseFloat(r.amount);
-      if (!amt || amt <= 0) return setError(`Enter a valid amount for ${r.donorName}`);
+      if (r.promiseMode === "now") {
+        const amt = parseFloat(r.amount);
+        if (!r.item.trim() && (!amt || amt <= 0))
+          return setError(`Enter a valid amount or item for ${r.donorName}`);
+      }
     }
 
     setSaving(true);
+    const failures: string[] = [];
+
     for (const r of filled) {
       const mobileDigits = r.donorMobile.replace(/\D/g, "");
+      const mobile = mobileDigits.length === 10 ? r.donorMobile.trim() : null;
+      const hasItem = r.item.trim().length > 0;
+
+      if (r.promiseMode === "later") {
+        try {
+          await apiPost(`/orgs/${orgId}/pledges`, {
+            donor_name: r.donorName.trim(),
+            donor_mobile: mobile,
+            item_description: hasItem ? r.item.trim() : null,
+            promised_on: r.collectedOn,
+          });
+        } catch (e) {
+          failures.push(
+            `${r.donorName}: ${e instanceof ApiError ? e.message : "could not save reminder"}`
+          );
+        }
+        continue;
+      }
+
       await addToOutbox({
         orgId,
         kind: "chanda_create",
@@ -359,17 +387,23 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
         displayDate: r.collectedOn,
         payload: {
           donorName: r.donorName.trim(),
-          donorMobile: mobileDigits.length === 10 ? r.donorMobile.trim() : null,
-          amount: parseFloat(r.amount),
+          donorMobile: mobile,
+          amount: parseFloat(r.amount) || 0,
           collectedOn: r.collectedOn,
           area: r.area.trim() || null,
           bookReference: r.bookReference.trim() || null,
-          itemDescription: null,
+          itemDescription: hasItem ? r.item.trim() : null,
         },
       });
     }
 
     syncOutbox(orgId);
+    setSaving(false);
+
+    if (failures.length > 0) {
+      setError(`Some reminders couldn't be saved — ${failures.join("; ")}`);
+      return;
+    }
     onDone();
   }
 
@@ -412,13 +446,21 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
               className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
             <input
-              placeholder="Amount"
-              type="number"
-              inputMode="decimal"
-              value={r.amount}
-              onChange={(e) => update(r.key, { amount: e.target.value })}
-              className="w-full rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
+              placeholder="What are they giving? (optional — leave blank for cash)"
+              value={r.item}
+              onChange={(e) => update(r.key, { item: e.target.value })}
+              className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
+            {r.promiseMode === "now" && (
+              <input
+                placeholder={r.item.trim() ? "Estimated value in ₹ (optional)" : "Amount"}
+                type="number"
+                inputMode="decimal"
+                value={r.amount}
+                onChange={(e) => update(r.key, { amount: e.target.value })}
+                className="w-full rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
+              />
+            )}
             <input
               type="date"
               value={r.collectedOn}
@@ -426,18 +468,44 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
               onChange={(e) => update(r.key, { collectedOn: e.target.value })}
               className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
-            <input
-              placeholder="Area (optional)"
-              value={r.area}
-              onChange={(e) => update(r.key, { area: e.target.value })}
-              className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
-            />
-            <input
-              placeholder="Book reference (optional)"
-              value={r.bookReference}
-              onChange={(e) => update(r.key, { bookReference: e.target.value })}
-              className="rounded-lg border border-line px-3 py-2 text-body outline-none"
-            />
+            {r.promiseMode === "now" && (
+              <>
+                <input
+                  placeholder="Area (optional)"
+                  value={r.area}
+                  onChange={(e) => update(r.key, { area: e.target.value })}
+                  className="w-full rounded-lg border border-line px-3 py-2 text-body outline-none"
+                />
+                <input
+                  placeholder="Book reference (optional)"
+                  value={r.bookReference}
+                  onChange={(e) => update(r.key, { bookReference: e.target.value })}
+                  className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+                />
+              </>
+            )}
+            <div className="flex gap-2">
+              <button
+                onClick={() => update(r.key, { promiseMode: "now" })}
+                className={`flex-1 rounded-lg border px-2 py-2 text-caption font-semibold ${
+                  r.promiseMode === "now"
+                    ? "border-marigold bg-marigold/10 text-ink"
+                    : "border-line text-ink-muted"
+                }`}
+              >
+                Received now
+              </button>
+              <button
+                onClick={() => update(r.key, { promiseMode: "later" })}
+                className={`flex-1 rounded-lg border px-2 py-2 text-caption font-semibold ${
+                  r.promiseMode === "later"
+                    ? "border-marigold bg-marigold/10 text-ink"
+                    : "border-line text-ink-muted"
+                }`}
+              >
+                Promised for later
+              </button>
+            </div>
           </div>
         ))}
       </div>

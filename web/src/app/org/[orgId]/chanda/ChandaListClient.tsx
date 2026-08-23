@@ -35,6 +35,7 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
+  const [itemsOnly, setItemsOnly] = useState(false);
 
   const loadServer = useCallback(async () => {
     try {
@@ -75,12 +76,18 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
   );
 
   const visibleEntries = useMemo(
-    () => (serverEntries ?? []).filter((e) => matchesSearch(e.donor_name)),
-    [serverEntries, matchesSearch]
+    () =>
+      (serverEntries ?? []).filter(
+        (e) => matchesSearch(e.donor_name) && (!itemsOnly || e.item_description)
+      ),
+    [serverEntries, matchesSearch, itemsOnly]
   );
   const visiblePledges = useMemo(
-    () => (pledges ?? []).filter((p) => matchesSearch(p.donor_name)),
-    [pledges, matchesSearch]
+    () =>
+      (pledges ?? []).filter(
+        (p) => matchesSearch(p.donor_name) && (!itemsOnly || p.item_description)
+      ),
+    [pledges, matchesSearch, itemsOnly]
   );
 
   const total = (serverEntries ?? []).reduce((sum, e) => sum + e.amount, 0);
@@ -114,7 +121,7 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
         className="rounded-lg border border-line px-3 py-2.5 text-body outline-none"
       />
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {(["all", "collected", "later"] as StatusFilter[]).map((f) => (
           <button
             key={f}
@@ -126,6 +133,14 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
             {f}
           </button>
         ))}
+        <button
+          onClick={() => setItemsOnly((v) => !v)}
+          className={`rounded-lg border px-3 py-1.5 text-caption font-semibold ${
+            itemsOnly ? "border-marigold bg-marigold/10 text-ink" : "border-line text-ink-muted"
+          }`}
+        >
+          Items only
+        </button>
       </div>
 
       {error && (
@@ -170,8 +185,8 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
           (!showPledges || visiblePledges.length === 0) &&
           outbox.length === 0 && (
             <p className="text-body text-ink-muted py-4">
-              {q
-                ? "No chanda entries match your search."
+              {q || itemsOnly
+                ? "No chanda entries match your filters."
                 : canWrite
                   ? 'No chanda entries yet. Tap "+ Add" to log the first one.'
                   : "No chanda entries yet."}

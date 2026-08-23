@@ -148,11 +148,13 @@ function SingleEntryForm({
           pledged: true,
         });
       } catch (e) {
-        setError(
+        const reason =
           e instanceof ApiError
             ? e.message
-            : "Could not save — reminders need a connection, try again once you're back online"
-        );
+            : e instanceof Error
+              ? e.message
+              : "unknown error";
+        setError(`Could not save reminder — ${reason}. Tap "Save Reminder" to try again.`);
       } finally {
         setSaving(false);
       }
@@ -381,9 +383,9 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
             promised_amount: parseFloat(r.amount) || null,
           });
         } catch (e) {
-          failures.push(
-            `${r.donorName}: ${e instanceof ApiError ? e.message : "could not save reminder"}`
-          );
+          const reason =
+            e instanceof ApiError ? e.message : e instanceof Error ? e.message : "unknown error";
+          failures.push(`${r.donorName}: ${reason}`);
         }
         continue;
       }

@@ -101,33 +101,37 @@ export default function ChandaDetailPage() {
 
   return (
     <main className="flex flex-1 flex-col px-6 py-6 gap-6 max-w-xl mx-auto w-full">
-      <div className="flex flex-col gap-3 border border-line rounded-lg bg-surface p-4">
-        {entry.adjustment_for && (
-          <span className="text-caption text-marigold font-semibold">
-            Adjustment entry
-          </span>
-        )}
-        {entry.item_description && (
-          <span className="text-badge uppercase tracking-[0.02em] px-1.5 py-0.5 rounded bg-marigold/10 text-marigold self-start">
-            In-Kind
-          </span>
+      <div className="flex flex-col gap-4 border border-line rounded-lg bg-surface p-4">
+        {(entry.adjustment_for || entry.item_description) && (
+          <div className="flex items-center gap-2">
+            {entry.adjustment_for && (
+              <span className="text-caption text-marigold font-semibold">
+                Adjustment entry
+              </span>
+            )}
+            {entry.item_description && (
+              <span className="text-badge uppercase tracking-[0.02em] px-1.5 py-0.5 rounded bg-marigold/10 text-marigold">
+                In-Kind
+              </span>
+            )}
+          </div>
         )}
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-heading-2 font-display break-words">{entry.donor_name}</p>
             {entry.donor_mobile && (
-              <p className="text-caption text-ink-muted">+91 {entry.donor_mobile}</p>
+              <p className="text-caption text-ink-muted mt-0.5">+91 {entry.donor_mobile}</p>
             )}
           </div>
           <div className="shrink-0">
             <AmountText amount={entry.amount} size="lg" />
           </div>
         </div>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-caption">
+        <dl className="grid grid-cols-[7.5rem_1fr] gap-y-2.5 text-caption">
           {entry.item_description && (
             <>
               <dt className="text-ink-muted">Item</dt>
-              <dd>{entry.item_description}</dd>
+              <dd className="break-words">{entry.item_description}</dd>
             </>
           )}
           <dt className="text-ink-muted">Collected on</dt>
@@ -137,13 +141,13 @@ export default function ChandaDetailPage() {
           {entry.area && (
             <>
               <dt className="text-ink-muted">Area</dt>
-              <dd>{entry.area}</dd>
+              <dd className="break-words">{entry.area}</dd>
             </>
           )}
           {entry.book_reference && (
             <>
               <dt className="text-ink-muted">Book reference</dt>
-              <dd>{entry.book_reference}</dd>
+              <dd className="break-words">{entry.book_reference}</dd>
             </>
           )}
         </dl>

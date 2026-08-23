@@ -132,7 +132,7 @@ export function SettingsClient({
 
       {iconStale && (
         <div className="flex flex-col gap-2 border border-marigold rounded-lg bg-marigold/10 p-4">
-          <p className="text-body-strong">Your organization's photo was updated</p>
+          <p className="text-body-strong">Your organization&apos;s photo was updated</p>
           <p className="text-caption text-ink-muted">
             Your home screen icon is out of date. To fix it: long-press this
             app&apos;s icon on your home screen and uninstall/remove it, then

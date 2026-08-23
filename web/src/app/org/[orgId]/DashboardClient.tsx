@@ -7,6 +7,7 @@ import { formatDate } from "@/lib/format";
 import { AmountOrItem } from "@/components/AmountOrItem";
 import { TxnTag } from "@/components/TxnTag";
 import { useOrgTransactions } from "@/lib/useOrgTransactions";
+import type { Pledge } from "@/components/PledgeRow";
 
 type Announcement = {
   id: string;
@@ -20,6 +21,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: boolean }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [annError, setAnnError] = useState<string | null>(null);
+  const [pledges, setPledges] = useState<Pledge[]>([]);
   const { transactions, loaded, error: txnError, reload } = useOrgTransactions(orgId);
 
   const loadAnnouncements = useCallback(() => {
@@ -35,8 +37,24 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
     loadAnnouncements();
   }, [loadAnnouncements]);
 
+  useEffect(() => {
+    apiGet(`/orgs/${orgId}/pledges`)
+      .then(setPledges)
+      .catch(() => setPledges([]));
+  }, [orgId]);
+
   const today = todayStr();
   const todaysTxns = transactions.filter((t) => t.enteredAt.slice(0, 10) === today);
+  // Promises made today show here too (in addition to Reminders) — a pledge
+  // is by definition not yet collected as long as it's still in this list;
+  // once resolved it turns into a real entry and shows via todaysTxns instead.
+  const todaysPledges = pledges.filter((p) => p.created_at.slice(0, 10) === today);
+
+  const todayEmpty = todaysTxns.length === 0 && todaysPledges.length === 0;
+  const todayItems = [
+    ...todaysTxns.map((t) => ({ kind: "txn" as const, sortKey: t.enteredAt, t })),
+    ...todaysPledges.map((p) => ({ kind: "pledge" as const, sortKey: p.created_at, p })),
+  ].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
 
   const todaySection = (
     <section className="flex flex-col">
@@ -50,25 +68,47 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
           </button>
         </div>
       )}
-      {loaded && !txnError && todaysTxns.length === 0 && (
+      {loaded && !txnError && todayEmpty && (
         <p className="text-body text-ink-muted py-2">Nothing logged yet today.</p>
       )}
-      {todaysTxns.map((t) => (
-        <Link
-          key={`${t.type}-${t.id}`}
-          href={t.href}
-          className="flex items-center gap-3 border-b border-line py-3 min-h-11"
-        >
-          <div className="flex-1 min-w-0">
-            <p className="text-body-strong truncate">{t.title}</p>
-            <div className="flex items-center gap-1.5 min-w-0">
-              <TxnTag type={t.type} />
-              <p className="text-caption text-ink-muted truncate">{t.subtitle}</p>
+      {todayItems.map((item) =>
+        item.kind === "txn" ? (
+          <Link
+            key={`txn-${item.t.type}-${item.t.id}`}
+            href={item.t.href}
+            className="flex items-center gap-3 border-b border-line py-3 min-h-11"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-body-strong truncate">{item.t.title}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <TxnTag type={item.t.type} />
+                <p className="text-caption text-ink-muted truncate">{item.t.subtitle}</p>
+              </div>
             </div>
-          </div>
-          <AmountOrItem amount={t.amount} itemDescription={t.itemDescription} />
-        </Link>
-      ))}
+            <AmountOrItem amount={item.t.amount} itemDescription={item.t.itemDescription} />
+          </Link>
+        ) : (
+          <Link
+            key={`pledge-${item.p.id}`}
+            href={`/org/${orgId}/reminders`}
+            className="flex items-center gap-3 border-b border-line py-3 min-h-11"
+          >
+            <div className="flex-1 min-w-0">
+              <p className="text-body-strong truncate">{item.p.donor_name}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <TxnTag type="promised" />
+                <p className="text-caption text-ink-muted truncate">
+                  {item.p.item_description || "Cash"} — not yet collected
+                </p>
+              </div>
+            </div>
+            <AmountOrItem
+              amount={item.p.promised_amount ?? 0}
+              itemDescription={item.p.item_description}
+            />
+          </Link>
+        )
+      )}
     </section>
   );
 

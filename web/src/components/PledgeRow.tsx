@@ -14,6 +14,7 @@ export type Pledge = {
   area: string | null;
   book_reference: string | null;
   promised_amount: number | null;
+  created_at: string;
 };
 
 export function PledgeRow({

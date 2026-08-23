@@ -31,7 +31,18 @@ async function handle(res: Response) {
 
 export async function apiGet(path: string) {
   const headers = await authHeaders();
-  return handle(await fetch(`${API_URL}${path}`, { headers }));
+  try {
+    return await handle(await fetch(`${API_URL}${path}`, { headers }));
+  } catch (e) {
+    // A backgrounded tab can leave a stale connection behind — the first
+    // request after returning to the app fails outright, and an immediate
+    // retry on a fresh connection succeeds. Only worth doing for GETs: they're
+    // idempotent, so a silent retry can't create duplicate data like it could
+    // for a POST.
+    if (e instanceof ApiError) throw e;
+    await new Promise((r) => setTimeout(r, 400));
+    return handle(await fetch(`${API_URL}${path}`, { headers }));
+  }
 }
 
 export async function apiPost(path: string, body?: unknown) {

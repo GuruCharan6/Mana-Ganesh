@@ -6,17 +6,20 @@ import { apiGet, apiPatch, apiUpload, ApiError } from "@/lib/api";
 import { formatAmount } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
 import { OrgBrandMark } from "@/components/OrgBrandMark";
+import { InstallButton } from "@/components/InstallButton";
 import { createClient } from "@/lib/supabase/client";
 import { MembersSection } from "./MembersSection";
 
 export function SettingsClient({
   orgId,
   isAdmin,
+  canWrite,
   initialName,
   initialLogoUrl,
 }: {
   orgId: string;
   isAdmin: boolean;
+  canWrite: boolean;
   initialName: string;
   initialLogoUrl: string | null;
 }) {
@@ -35,45 +38,54 @@ export function SettingsClient({
   }
 
   useEffect(() => {
+    if (!canWrite) return;
     apiGet(`/orgs/${orgId}/dashboard`)
       .then(setTotals)
       .catch((e) => setError(e instanceof ApiError ? e.message : "Could not load totals"));
-  }, [orgId]);
+  }, [orgId, canWrite]);
 
   return (
     <main className="flex flex-1 flex-col px-6 py-6 gap-8 max-w-xl mx-auto w-full">
       <h1 className="font-display text-heading-1">Settings</h1>
 
-      <div className="flex flex-wrap gap-x-8 gap-y-3">
-        <div>
-          <p className="text-caption text-ink-muted uppercase tracking-[0.02em]">Collected</p>
-          <p className="font-mono text-display-lg text-ink">
-            {totals ? formatAmount(totals.total_collected) : "—"}
-          </p>
-        </div>
-        <div>
-          <p className="text-caption text-ink-muted uppercase tracking-[0.02em]">Spent</p>
-          <p className="font-mono text-display-lg text-ink">
-            {totals ? formatAmount(totals.total_spent) : "—"}
-          </p>
-        </div>
-      </div>
-      {error && <p className="text-caption text-sindoor">{error}</p>}
+      {canWrite && (
+        <>
+          <div className="flex flex-wrap gap-x-8 gap-y-3">
+            <div>
+              <p className="text-caption text-ink-muted uppercase tracking-[0.02em]">Collected</p>
+              <p className="font-mono text-display-lg text-ink">
+                {totals ? formatAmount(totals.total_collected) : "—"}
+              </p>
+            </div>
+            <div>
+              <p className="text-caption text-ink-muted uppercase tracking-[0.02em]">Spent</p>
+              <p className="font-mono text-display-lg text-ink">
+                {totals ? formatAmount(totals.total_spent) : "—"}
+              </p>
+            </div>
+          </div>
+          {error && <p className="text-caption text-sindoor">{error}</p>}
+        </>
+      )}
 
       {isAdmin && (
         <OrgIdentitySection orgId={orgId} initialName={initialName} initialLogoUrl={initialLogoUrl} />
       )}
 
-      <section className="flex flex-col gap-3">
-        <button
-          onClick={() => setMembersOpen((v) => !v)}
-          className="flex items-center justify-between py-2 border-b border-line text-left"
-        >
-          <span className="text-body-strong">Members</span>
-          <span className="text-ink-muted text-body">{membersOpen ? "▾" : "▸"}</span>
-        </button>
-        {membersOpen && <MembersSection orgId={orgId} canManage={isAdmin} />}
-      </section>
+      {canWrite && (
+        <section className="flex flex-col gap-3">
+          <button
+            onClick={() => setMembersOpen((v) => !v)}
+            className="flex items-center justify-between py-2 border-b border-line text-left"
+          >
+            <span className="text-body-strong">Members</span>
+            <span className="text-ink-muted text-body">{membersOpen ? "▾" : "▸"}</span>
+          </button>
+          {membersOpen && <MembersSection orgId={orgId} canManage={isAdmin} />}
+        </section>
+      )}
+
+      <InstallButton />
 
       <Button variant="secondary" onClick={logout} disabled={loggingOut}>
         {loggingOut ? "Logging out..." : "Log Out"}

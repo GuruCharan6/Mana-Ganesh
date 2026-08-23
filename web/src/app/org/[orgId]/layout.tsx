@@ -6,7 +6,6 @@ import { OrgNav } from "@/components/OrgNav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { SettingsLink } from "@/components/SettingsLink";
 import { RemindersLink } from "@/components/RemindersLink";
-import { LogoutButton } from "@/components/LogoutButton";
 
 export async function generateMetadata({
   params,
@@ -58,10 +57,9 @@ export default async function OrgLayout({
           <p className="text-caption text-ink-muted truncate">Welcome, {member.name}</p>
         </div>
         {canWrite && <RemindersLink orgId={orgId} />}
-        {canWrite && <SettingsLink orgId={orgId} />}
-        {/* Full Access and Admin log out from within Settings instead —
-            View Only has no Settings access, so it needs the header icon. */}
-        {!canWrite && <LogoutButton />}
+        {/* Everyone reaches Settings now — logout and (for Android) the
+            Install button both live there instead of the header. */}
+        <SettingsLink orgId={orgId} />
       </header>
       <OfflineBanner orgId={orgId} />
       <div

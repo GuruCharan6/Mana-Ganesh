@@ -1,9 +1,8 @@
--- Mana Ganesh — consolidated schema (end-state as of 2026-08-23).
--- This single file replaces the previously separate 0001–0009 migrations
--- (init, RLS bootstrap-bug fix, storage buckets, email login switch,
--- chanda pledges, optional donor/pledge mobile). Those files are archived
--- under supabase/migrations/_archive/ for history — this is the one to run
--- against a fresh Supabase project.
+-- Mana Ganesh — consolidated schema (end-state as of 2026-08-25).
+-- This single file replaces every previous migration (0001–0006, which
+-- themselves replaced an even earlier 0001–0009 set). Run this once against
+-- a fresh Supabase project. There is no migration history to preserve here —
+-- this is always the one true schema file.
 
 -- ============================================================================
 -- Tables
@@ -13,6 +12,8 @@ create table organizations (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   logo_url text, -- null = use default placeholder mark
+  lucky_draw_ticket_price numeric(10,2), -- null until Admin sets one in Settings
+  lucky_draw_qr_url text, -- uploaded payment QR image, shown on chanda + lucky draw entry forms
   created_by uuid references auth.users(id) not null,
   created_at timestamptz default now()
 );
@@ -37,7 +38,7 @@ create table org_members (
 -- immutable — a pledge is a to-do/reminder, not a financial record. It
 -- becomes part of the permanent, immutable ledger only when resolved:
 -- resolving inserts a new chanda_entries row (additive) and marks the pledge
--- done. Nothing in chanda_entries is ever edited.
+-- done. Nothing in chanda_entries is ever edited by a non-admin.
 -- Created before chanda_entries so chanda_entries.pledge_id can reference it;
 -- its own resolved_chanda_entry_id FK is added further down, once
 -- chanda_entries exists.
@@ -48,6 +49,9 @@ create table chanda_pledges (
   donor_mobile text, -- optional — some donors decline to share a number
   item_description text, -- null = plain cash promised for later, no item involved
   promised_on date not null default current_date,
+  area text,
+  book_reference text,
+  promised_amount numeric(10,2), -- informational only; resolving asks for the actual value
   status text not null default 'pending' check (status in ('pending', 'resolved')),
   resolved_chanda_entry_id uuid,
   created_by uuid references auth.users(id) not null,
@@ -65,19 +69,21 @@ create table chanda_entries (
   area text,
   book_reference text,
   item_description text, -- null = cash entry; set = in-kind (direct entry or resolved pledge)
+  payment_method text check (payment_method in ('cash', 'qr')),
   pledge_id uuid references chanda_pledges(id), -- set when this entry resolved a pledge
   collected_by uuid references auth.users(id) not null,
-  adjustment_for uuid references chanda_entries(id), -- null unless this is a correction entry
+  adjustment_for uuid references chanda_entries(id) on delete set null, -- null unless this is a correction entry
+  thank_you_sent_at timestamptz, -- set the instant Admin/Full Access taps Send Thank You
   created_at timestamptz default now()
 );
 
 alter table chanda_pledges
   add constraint chanda_pledges_resolved_entry_fkey
-  foreign key (resolved_chanda_entry_id) references chanda_entries(id);
+  foreign key (resolved_chanda_entry_id) references chanda_entries(id) on delete set null;
 
 create table chanda_comments (
   id uuid primary key default gen_random_uuid(),
-  chanda_entry_id uuid references chanda_entries(id) not null,
+  chanda_entry_id uuid references chanda_entries(id) on delete cascade not null,
   commented_by uuid references auth.users(id) not null,
   comment text not null,
   created_at timestamptz default now()
@@ -92,13 +98,13 @@ create table expense_entries (
   expense_date date not null,
   receipt_url text, -- Supabase Storage path
   logged_by uuid references auth.users(id) not null,
-  adjustment_for uuid references expense_entries(id),
+  adjustment_for uuid references expense_entries(id) on delete set null,
   created_at timestamptz default now()
 );
 
 create table expense_comments (
   id uuid primary key default gen_random_uuid(),
-  expense_entry_id uuid references expense_entries(id) not null,
+  expense_entry_id uuid references expense_entries(id) on delete cascade not null,
   commented_by uuid references auth.users(id) not null,
   comment text not null,
   created_at timestamptz default now()
@@ -113,6 +119,22 @@ create table announcements (
   created_at timestamptz default now(),
   updated_at timestamptz,
   edited_by uuid references auth.users(id)
+);
+
+-- Lucky Draw — a fully separate ledger, never merged into chanda/expense
+-- totals, history, or the Home "Today" feed. One row per ticket (not per
+-- purchase), since each ticket is its own draw entry.
+create table lucky_draw_entries (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references organizations(id) not null,
+  buyer_name text not null,
+  buyer_mobile text,
+  buyer_address text,
+  amount numeric(10,2) not null,
+  payment_method text not null check (payment_method in ('cash', 'qr')),
+  sold_by uuid references auth.users(id) not null,
+  receipt_sent_at timestamptz, -- set the instant Send Receipt is tapped
+  created_at timestamptz default now()
 );
 
 -- ============================================================================
@@ -178,6 +200,7 @@ alter table expense_entries enable row level security;
 alter table expense_comments enable row level security;
 alter table announcements enable row level security;
 alter table chanda_pledges enable row level security;
+alter table lucky_draw_entries enable row level security;
 
 -- organizations ---------------------------------------------------------
 
@@ -189,7 +212,7 @@ create policy "authenticated users can create an org"
   on organizations for insert
   with check (created_by = auth.uid());
 
-create policy "admin can update org (logo, name)"
+create policy "admin can update org (logo, name, lucky draw settings)"
   on organizations for update
   using (is_org_admin(id));
 
@@ -243,9 +266,9 @@ create policy "full access members can resolve pledges"
   using (has_full_access(org_id));
 
 -- chanda_entries -----------------------------------------------------------
--- No update/delete policy exists on this table, anywhere in this file.
--- That is intentional: with RLS enabled and no UPDATE/DELETE policy, every
--- such statement is rejected at the database level, regardless of role.
+-- Immutable for everyone except Admin, who can edit/delete (no audit trail
+-- kept — a deliberate reversal of the original "no update/delete, ever"
+-- rule, scoped to Admin only). Full Access can still only insert/read.
 
 create policy "members can read chanda entries"
   on chanda_entries for select
@@ -254,6 +277,14 @@ create policy "members can read chanda entries"
 create policy "full access members can add chanda entries"
   on chanda_entries for insert
   with check (has_full_access(org_id) and collected_by = auth.uid());
+
+create policy "admin can update chanda entries"
+  on chanda_entries for update
+  using (is_org_admin(org_id));
+
+create policy "admin can delete chanda entries"
+  on chanda_entries for delete
+  using (is_org_admin(org_id));
 
 -- chanda_comments ----------------------------------------------------------
 
@@ -271,8 +302,7 @@ create policy "full access members can comment on chanda entries"
   );
 
 -- expense_entries ------------------------------------------------------
--- No update/delete policy exists on this table either — same rationale as
--- chanda_entries.
+-- Same immutable-except-Admin rule as chanda_entries.
 
 create policy "members can read expense entries"
   on expense_entries for select
@@ -281,6 +311,14 @@ create policy "members can read expense entries"
 create policy "full access members can add expense entries"
   on expense_entries for insert
   with check (has_full_access(org_id) and logged_by = auth.uid());
+
+create policy "admin can update expense entries"
+  on expense_entries for update
+  using (is_org_admin(org_id));
+
+create policy "admin can delete expense entries"
+  on expense_entries for delete
+  using (is_org_admin(org_id));
 
 -- expense_comments -----------------------------------------------------
 
@@ -317,6 +355,25 @@ create policy "full access members can delete any announcement"
   on announcements for delete
   using (has_full_access(org_id));
 
+-- lucky_draw_entries ---------------------------------------------------
+-- Same immutable-except-Admin rule as chanda/expense entries.
+
+create policy "members can read lucky draw entries"
+  on lucky_draw_entries for select
+  using (is_org_member(org_id));
+
+create policy "full access members can add lucky draw entries"
+  on lucky_draw_entries for insert
+  with check (has_full_access(org_id) and sold_by = auth.uid());
+
+create policy "admin can update lucky draw entries"
+  on lucky_draw_entries for update
+  using (is_org_admin(org_id));
+
+create policy "admin can delete lucky draw entries"
+  on lucky_draw_entries for delete
+  using (is_org_admin(org_id));
+
 -- ============================================================================
 -- Storage buckets — all public (writes only ever go through the FastAPI
 -- backend via service role after an admin/full-access check in Python;
@@ -327,5 +384,6 @@ insert into storage.buckets (id, name, public)
 values
   ('org-logos', 'org-logos', true),
   ('expense-receipts', 'expense-receipts', true),
-  ('announcement-images', 'announcement-images', true)
+  ('announcement-images', 'announcement-images', true),
+  ('lucky-draw-qr', 'lucky-draw-qr', true)
 on conflict (id) do nothing;

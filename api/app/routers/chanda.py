@@ -1,12 +1,15 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.auth import AuthUser, get_current_user
-from app.authz import require_full_access, require_member
+from app.authz import require_admin, require_full_access, require_member
 from app.schemas import (
     ChandaAdjustCreate,
     ChandaBatchCreate,
     ChandaCommentCreate,
     ChandaCreate,
+    ChandaUpdate,
 )
 from app.supabase_admin import get_admin_client
 
@@ -70,6 +73,7 @@ def create_chanda(
                 "area": body.area,
                 "book_reference": body.book_reference,
                 "item_description": body.item_description,
+                "payment_method": body.payment_method,
                 "collected_by": user.id,
             }
         )
@@ -101,6 +105,7 @@ def create_chanda_batch(
             "area": e.area,
             "book_reference": e.book_reference,
             "item_description": e.item_description,
+            "payment_method": e.payment_method,
             "collected_by": user.id,
         }
         for e in body.entries
@@ -157,6 +162,21 @@ def get_chanda_detail(entry_id: str, user: AuthUser = Depends(get_current_user))
     }
 
 
+@router.post("/chanda/{entry_id}/mark-thanked")
+def mark_chanda_thanked(entry_id: str, user: AuthUser = Depends(get_current_user)):
+    admin = get_admin_client()
+    entry = _get_entry_or_404(admin, entry_id)
+    require_full_access(entry["org_id"], user.id)
+
+    res = (
+        admin.table("chanda_entries")
+        .update({"thank_you_sent_at": datetime.now(timezone.utc).isoformat()})
+        .eq("id", entry_id)
+        .execute()
+    )
+    return res.data[0]
+
+
 @router.post("/chanda/{entry_id}/comments", status_code=status.HTTP_201_CREATED)
 def add_chanda_comment(
     entry_id: str, body: ChandaCommentCreate, user: AuthUser = Depends(get_current_user)
@@ -177,6 +197,47 @@ def add_chanda_comment(
         .execute()
     )
     return res.data[0]
+
+
+@router.patch("/chanda/{entry_id}")
+def update_chanda(
+    entry_id: str, body: ChandaUpdate, user: AuthUser = Depends(get_current_user)
+):
+    admin = get_admin_client()
+    entry = _get_entry_or_404(admin, entry_id)
+    require_admin(entry["org_id"], user.id)
+
+    # `is not None` can't tell "field omitted" from "field explicitly cleared
+    # to null" — both look identical once parsed. model_fields_set tracks
+    # which keys were actually present in the request body, so a client
+    # sending {"area": null} to clear it is honored instead of silently
+    # skipped.
+    provided = body.model_fields_set
+    field_map = {
+        "donor_name": body.donor_name,
+        "donor_mobile": body.donor_mobile,
+        "amount": body.amount,
+        "collected_on": body.collected_on.isoformat() if body.collected_on else None,
+        "area": body.area,
+        "book_reference": body.book_reference,
+        "item_description": body.item_description,
+        "payment_method": body.payment_method,
+    }
+    update = {k: v for k, v in field_map.items() if k in provided}
+    if not update:
+        return entry
+
+    res = admin.table("chanda_entries").update(update).eq("id", entry_id).execute()
+    return res.data[0]
+
+
+@router.delete("/chanda/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_chanda(entry_id: str, user: AuthUser = Depends(get_current_user)):
+    admin = get_admin_client()
+    entry = _get_entry_or_404(admin, entry_id)
+    require_admin(entry["org_id"], user.id)
+
+    admin.table("chanda_entries").delete().eq("id", entry_id).execute()
 
 
 @router.post("/chanda/{entry_id}/adjust", status_code=status.HTTP_201_CREATED)

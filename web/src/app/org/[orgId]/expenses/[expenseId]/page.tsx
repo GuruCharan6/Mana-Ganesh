@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { apiGet, ApiError } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { apiGet, apiPatchForm, apiDelete, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { AmountText } from "@/components/AmountText";
 import { SyncBadge } from "@/components/ui/SyncBadge";
@@ -11,6 +11,7 @@ import { EXPENSE_CATEGORIES } from "@/lib/expenseCategories";
 import { addToOutbox, listOutboxByKind, onOutboxChange } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
 import { useOutboxSync } from "@/lib/offline/useOutboxSync";
+import { useMyMembership } from "@/lib/useMyMembership";
 import type { ExpenseAdjustPayload, ExpenseCommentPayload, OutboxRecord } from "@/lib/offline/db";
 
 type Entry = {
@@ -39,11 +40,29 @@ type Detail = {
 
 export default function ExpenseDetailPage() {
   const { orgId, expenseId } = useParams<{ orgId: string; expenseId: string }>();
+  const router = useRouter();
+  const { isAdmin } = useMyMembership(orgId);
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingComments, setPendingComments] = useState<OutboxRecord[]>([]);
   const [pendingAdjustments, setPendingAdjustments] = useState<OutboxRecord[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function remove() {
+    if (!confirm("Delete this expense entry permanently? This cannot be undone.")) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await apiDelete(`/expenses/${expenseId}`);
+      router.push(`/org/${orgId}/expenses`);
+    } catch (e) {
+      setDeleteError(e instanceof ApiError ? e.message : "Could not delete entry");
+      setDeleting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -128,6 +147,29 @@ export default function ExpenseDetailPage() {
           />
         )}
       </div>
+
+      {isAdmin && !editing && (
+        <div className="flex items-center gap-4">
+          <button onClick={() => setEditing(true)} className="text-body font-semibold text-peacock">
+            Edit
+          </button>
+          <button onClick={remove} disabled={deleting} className="text-body font-semibold text-sindoor">
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      )}
+      {deleteError && <p className="text-caption text-sindoor">{deleteError}</p>}
+
+      {isAdmin && editing && (
+        <EditExpenseForm
+          entry={entry}
+          onDone={() => {
+            setEditing(false);
+            load();
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
 
       {(adjustments.length > 0 || pendingAdjustments.length > 0) && (
         <section className="flex flex-col gap-2">
@@ -310,6 +352,98 @@ function AdjustSection({ orgId, expenseId }: { orgId: string; expenseId: string 
           {saving ? "Saving..." : "Save Adjustment"}
         </Button>
         <Button variant="secondary" onClick={() => setOpen(false)} className="flex-1">
+          Cancel
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function EditExpenseForm({
+  entry,
+  onDone,
+  onCancel,
+}: {
+  entry: Entry;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [category, setCategory] = useState(entry.category);
+  const [vendorName, setVendorName] = useState(entry.vendor_name ?? "");
+  const [amount, setAmount] = useState(String(entry.amount));
+  const [expenseDate, setExpenseDate] = useState(entry.expense_date);
+  const [receipt, setReceipt] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setError(null);
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0) return setError("Enter a valid amount");
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append("category", category);
+      form.append("amount", String(amt));
+      form.append("expense_date", expenseDate);
+      form.append("vendor_name", vendorName.trim());
+      if (receipt) form.append("receipt", receipt);
+      await apiPatchForm(`/expenses/${entry.id}`, form);
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Could not save changes");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3 border border-line rounded-lg bg-surface p-4">
+      <h2 className="text-heading-2 font-sans">Edit Expense Entry</h2>
+      <select
+        value={category}
+        onChange={(e) => setCategory(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none bg-surface"
+      >
+        {EXPENSE_CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <input
+        placeholder="Vendor / payee name"
+        value={vendorName}
+        onChange={(e) => setVendorName(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        type="number"
+        inputMode="decimal"
+        placeholder="Amount"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
+      />
+      <input
+        type="date"
+        value={expenseDate}
+        onChange={(e) => setExpenseDate(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        type="file"
+        accept="image/png,image/jpeg"
+        onChange={(e) => setReceipt(e.target.files?.[0] ?? null)}
+        className="text-body"
+      />
+      <p className="text-caption text-ink-muted">Leave file empty to keep the current receipt.</p>
+      {error && <p className="text-caption text-sindoor">{error}</p>}
+      <div className="flex gap-2">
+        <Button onClick={save} disabled={saving} className="flex-1">
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
       </div>

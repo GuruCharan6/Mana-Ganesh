@@ -23,6 +23,7 @@ async function push(orgId: string, record: OutboxRecord): Promise<void> {
         area: p.area,
         book_reference: p.bookReference,
         item_description: p.itemDescription,
+        payment_method: p.paymentMethod,
         client_ref: record.localId,
       });
       return;

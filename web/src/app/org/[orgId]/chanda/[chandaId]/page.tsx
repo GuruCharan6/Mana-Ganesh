@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { apiGet, ApiError } from "@/lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { apiGet, apiPatch, apiDelete, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { AmountText } from "@/components/AmountText";
 import { ThankYouButton } from "@/components/ThankYouButton";
@@ -12,6 +12,8 @@ import { addToOutbox, listOutboxByKind, onOutboxChange } from "@/lib/offline/out
 import { syncOutbox } from "@/lib/offline/sync";
 import { useOutboxSync } from "@/lib/offline/useOutboxSync";
 import { useOrgName } from "@/lib/useOrgName";
+import { useMyMembership } from "@/lib/useMyMembership";
+import { PaymentMethodToggle, type PaymentMethod } from "@/components/PaymentMethodField";
 import type { ChandaAdjustPayload, ChandaCommentPayload, OutboxRecord } from "@/lib/offline/db";
 
 type Entry = {
@@ -25,6 +27,8 @@ type Entry = {
   book_reference: string | null;
   adjustment_for: string | null;
   item_description: string | null;
+  payment_method: "cash" | "qr" | null;
+  thank_you_sent_at: string | null;
   collected_by_name: string;
 };
 
@@ -43,12 +47,30 @@ type Detail = {
 
 export default function ChandaDetailPage() {
   const { orgId, chandaId } = useParams<{ orgId: string; chandaId: string }>();
+  const router = useRouter();
   const orgName = useOrgName(orgId);
+  const { isAdmin } = useMyMembership(orgId);
 
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingComments, setPendingComments] = useState<OutboxRecord[]>([]);
   const [pendingAdjustments, setPendingAdjustments] = useState<OutboxRecord[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function remove() {
+    if (!confirm("Delete this chanda entry permanently? This cannot be undone.")) return;
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      await apiDelete(`/chanda/${chandaId}`);
+      router.push(`/org/${orgId}/chanda`);
+    } catch (e) {
+      setDeleteError(e instanceof ApiError ? e.message : "Could not delete entry");
+      setDeleting(false);
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -151,16 +173,44 @@ export default function ChandaDetailPage() {
             </>
           )}
         </dl>
-        {!entry.adjustment_for && entry.donor_mobile && (
+        {!entry.adjustment_for && entry.donor_mobile && !entry.thank_you_sent_at && (
           <ThankYouButton
+            entryId={entry.id}
             donorName={entry.donor_name}
             donorMobile={entry.donor_mobile}
             amount={entry.amount}
             orgName={orgName}
             itemDescription={entry.item_description}
+            onSent={load}
           />
         )}
+        {!entry.adjustment_for && entry.donor_mobile && entry.thank_you_sent_at && (
+          <p className="text-caption text-durva">Thank-you sent.</p>
+        )}
       </div>
+
+      {isAdmin && !editing && (
+        <div className="flex items-center gap-4">
+          <button onClick={() => setEditing(true)} className="text-body font-semibold text-peacock">
+            Edit
+          </button>
+          <button onClick={remove} disabled={deleting} className="text-body font-semibold text-sindoor">
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      )}
+      {deleteError && <p className="text-caption text-sindoor">{deleteError}</p>}
+
+      {isAdmin && editing && (
+        <EditChandaForm
+          entry={entry}
+          onDone={() => {
+            setEditing(false);
+            load();
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      )}
 
       {(adjustments.length > 0 || pendingAdjustments.length > 0) && (
         <section className="flex flex-col gap-2">
@@ -325,6 +375,110 @@ function AdjustSection({ orgId, chandaId }: { orgId: string; chandaId: string })
           {saving ? "Saving..." : "Save Adjustment"}
         </Button>
         <Button variant="secondary" onClick={() => setOpen(false)} className="flex-1">
+          Cancel
+        </Button>
+      </div>
+    </section>
+  );
+}
+
+function EditChandaForm({
+  entry,
+  onDone,
+  onCancel,
+}: {
+  entry: Entry;
+  onDone: () => void;
+  onCancel: () => void;
+}) {
+  const [donorName, setDonorName] = useState(entry.donor_name);
+  const [donorMobile, setDonorMobile] = useState(entry.donor_mobile ?? "");
+  const [amount, setAmount] = useState(String(entry.amount));
+  const [collectedOn, setCollectedOn] = useState(entry.collected_on);
+  const [area, setArea] = useState(entry.area ?? "");
+  const [bookReference, setBookReference] = useState(entry.book_reference ?? "");
+  const [itemDescription, setItemDescription] = useState(entry.item_description ?? "");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(entry.payment_method ?? "cash");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save() {
+    setError(null);
+    if (!donorName.trim()) return setError("Donor name is required");
+    setSaving(true);
+    try {
+      await apiPatch(`/chanda/${entry.id}`, {
+        donor_name: donorName.trim(),
+        donor_mobile: donorMobile.trim() || null,
+        amount: parseFloat(amount) || 0,
+        collected_on: collectedOn,
+        area: area.trim() || null,
+        book_reference: bookReference.trim() || null,
+        item_description: itemDescription.trim() || null,
+        payment_method: paymentMethod,
+      });
+      onDone();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Could not save changes");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3 border border-line rounded-lg bg-surface p-4">
+      <h2 className="text-heading-2 font-sans">Edit Chanda Entry</h2>
+      <input
+        placeholder="Donor name"
+        value={donorName}
+        onChange={(e) => setDonorName(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        placeholder="Donor mobile (optional)"
+        value={donorMobile}
+        onChange={(e) => setDonorMobile(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        placeholder="Item (optional)"
+        value={itemDescription}
+        onChange={(e) => setItemDescription(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        type="number"
+        inputMode="decimal"
+        placeholder="Amount"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body font-mono outline-none"
+      />
+      <input
+        type="date"
+        value={collectedOn}
+        onChange={(e) => setCollectedOn(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        placeholder="Area (optional)"
+        value={area}
+        onChange={(e) => setArea(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <input
+        placeholder="Book reference (optional)"
+        value={bookReference}
+        onChange={(e) => setBookReference(e.target.value)}
+        className="rounded-lg border border-line px-3 py-2 text-body outline-none"
+      />
+      <PaymentMethodToggle value={paymentMethod} onChange={setPaymentMethod} />
+      {error && <p className="text-caption text-sindoor">{error}</p>}
+      <div className="flex gap-2">
+        <Button onClick={save} disabled={saving} className="flex-1">
+          {saving ? "Saving..." : "Save Changes"}
+        </Button>
+        <Button variant="secondary" onClick={onCancel} className="flex-1">
           Cancel
         </Button>
       </div>

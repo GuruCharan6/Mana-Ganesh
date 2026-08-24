@@ -1,35 +1,35 @@
-import { buildThankYouUrl } from "@/lib/whatsapp";
+import { buildLuckyDrawReceiptUrl } from "@/lib/whatsapp";
 import { apiPost } from "@/lib/api";
 
-export function ThankYouButton({
-  entryId,
-  donorName,
-  donorMobile,
+export function ReceiptButton({
+  ticketId,
+  buyerName,
+  buyerMobile,
   amount,
   orgName,
-  itemDescription,
+  paymentMethod,
   onSent,
 }: {
-  entryId?: string;
-  donorName: string;
-  donorMobile: string;
+  ticketId: string;
+  buyerName: string;
+  buyerMobile: string;
   amount: number;
   orgName: string;
-  itemDescription?: string | null;
+  paymentMethod: "cash" | "qr";
   onSent?: () => void;
 }) {
   return (
     <a
-      href={buildThankYouUrl(donorName, donorMobile, amount, orgName, itemDescription)}
+      href={buildLuckyDrawReceiptUrl(buyerName, buyerMobile, amount, orgName, paymentMethod)}
       target="_blank"
       rel="noopener noreferrer"
       onClick={() => {
-        if (entryId) apiPost(`/chanda/${entryId}/mark-thanked`).catch(() => {});
+        apiPost(`/lucky-draw/${ticketId}/mark-thanked`).catch(() => {});
         onSent?.();
       }}
       className="inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-lg text-body font-semibold bg-durva text-paper hover:brightness-95"
     >
-      Send Thank You
+      Send Receipt
     </a>
   );
 }

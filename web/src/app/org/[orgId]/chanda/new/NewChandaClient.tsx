@@ -9,6 +9,8 @@ import { addToOutbox } from "@/lib/offline/outbox";
 import { syncOutbox } from "@/lib/offline/sync";
 import { apiPost, ApiError } from "@/lib/api";
 import { useOrgName } from "@/lib/useOrgName";
+import { useOrgPaymentQr } from "@/lib/useOrgPaymentQr";
+import { PaymentMethodField, PaymentMethodToggle, type PaymentMethod } from "@/components/PaymentMethodField";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -113,8 +115,10 @@ function SingleEntryForm({
   const [bookReference, setBookReference] = useState("");
   const [item, setItem] = useState("");
   const [promiseMode, setPromiseMode] = useState<"now" | "later">("now");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const qrUrl = useOrgPaymentQr(orgId);
 
   const hasItem = item.trim().length > 0;
 
@@ -178,6 +182,7 @@ function SingleEntryForm({
         area: area.trim() || null,
         bookReference: bookReference.trim() || null,
         itemDescription: hasItem ? item.trim() : null,
+        paymentMethod,
       },
     });
 
@@ -272,6 +277,12 @@ function SingleEntryForm({
         />
       </Field>
 
+      {promiseMode === "now" && (
+        <Field label="Payment method">
+          <PaymentMethodField qrUrl={qrUrl} value={paymentMethod} onChange={setPaymentMethod} />
+        </Field>
+      )}
+
       <Field label="Have they given it, or promised for later?">
         <div className="flex gap-2">
           <button
@@ -312,6 +323,7 @@ type Row = {
   bookReference: string;
   item: string;
   promiseMode: "now" | "later";
+  paymentMethod: PaymentMethod;
 };
 
 function newRow(collectedOn: string): Row {
@@ -325,6 +337,7 @@ function newRow(collectedOn: string): Row {
     bookReference: "",
     item: "",
     promiseMode: "now",
+    paymentMethod: "cash",
   };
 }
 
@@ -403,6 +416,7 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
           area: r.area.trim() || null,
           bookReference: r.bookReference.trim() || null,
           itemDescription: hasItem ? r.item.trim() : null,
+          paymentMethod: r.paymentMethod,
         },
       });
     }
@@ -494,6 +508,12 @@ function BatchEntryForm({ orgId, onDone }: { orgId: string; onDone: () => void }
               onChange={(e) => update(r.key, { bookReference: e.target.value })}
               className="rounded-lg border border-line px-3 py-2 text-body outline-none"
             />
+            {r.promiseMode === "now" && (
+              <PaymentMethodToggle
+                value={r.paymentMethod}
+                onChange={(v) => update(r.key, { paymentMethod: v })}
+              />
+            )}
             <div className="flex gap-2">
               <button
                 onClick={() => update(r.key, { promiseMode: "now" })}

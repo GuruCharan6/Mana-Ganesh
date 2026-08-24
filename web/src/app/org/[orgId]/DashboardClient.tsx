@@ -22,6 +22,7 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [annError, setAnnError] = useState<string | null>(null);
   const [pledges, setPledges] = useState<Pledge[]>([]);
+  const [luckyDrawTodayCount, setLuckyDrawTodayCount] = useState<number | null>(null);
   const { transactions, loaded, error: txnError, reload } = useOrgTransactions(orgId);
 
   const loadAnnouncements = useCallback(() => {
@@ -41,6 +42,15 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
     apiGet(`/orgs/${orgId}/pledges`)
       .then(setPledges)
       .catch(() => setPledges([]));
+  }, [orgId]);
+
+  useEffect(() => {
+    apiGet(`/orgs/${orgId}/lucky-draw`)
+      .then((rows: { created_at: string }[]) => {
+        const today = todayStr();
+        setLuckyDrawTodayCount(rows.filter((r) => r.created_at.slice(0, 10) === today).length);
+      })
+      .catch(() => setLuckyDrawTodayCount(null));
   }, [orgId]);
 
   const today = todayStr();
@@ -154,6 +164,14 @@ export function DashboardClient({ orgId, canWrite }: { orgId: string; canWrite: 
   return (
     <main className="flex flex-1 flex-col px-6 py-6 gap-6 max-w-2xl w-full mx-auto">
       {announcementsSection}
+      {luckyDrawTodayCount !== null && (
+        <div className="flex items-center justify-between">
+          <span className="text-caption text-ink-muted uppercase tracking-[0.02em]">
+            Lucky Draw Tickets Sold Today
+          </span>
+          <span className="font-mono text-body-strong text-ink">{luckyDrawTodayCount}</span>
+        </div>
+      )}
       {todaySection}
     </main>
   );

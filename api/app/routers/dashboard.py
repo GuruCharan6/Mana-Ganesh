@@ -16,14 +16,22 @@ def get_dashboard(org_id: str, user: AuthUser = Depends(get_current_user)):
     admin = get_admin_client()
     chanda = admin.table("chanda_entries").select("amount").eq("org_id", org_id).execute()
     expenses = admin.table("expense_entries").select("amount").eq("org_id", org_id).execute()
+    lucky_draw = (
+        admin.table("lucky_draw_entries").select("amount").eq("org_id", org_id).execute()
+    )
 
     collected = round(sum(row["amount"] for row in chanda.data), 2)
     spent = round(sum(row["amount"] for row in expenses.data), 2)
+    lucky_draw_total = round(sum(row["amount"] for row in lucky_draw.data), 2)
 
     return {
         "total_collected": collected,
         "total_spent": spent,
         "balance": round(collected - spent, 2),
+        # Lucky Draw money is deliberately excluded from collected/spent/balance
+        # — it's a separate fundraising activity, shown here only as its own
+        # figure for Settings to display alongside the other two.
+        "total_lucky_draw": lucky_draw_total,
     }
 
 

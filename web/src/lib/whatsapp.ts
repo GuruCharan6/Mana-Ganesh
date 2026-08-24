@@ -12,15 +12,67 @@ export function buildThankYouUrl(
   orgName: string,
   itemDescription?: string | null
 ): string {
-  const gift = itemDescription
+  const givenLine = itemDescription
     ? amount > 0
-      ? `${itemDescription} (${formatAmount(amount)})`
-      : itemDescription
-    : formatAmount(amount);
-  const message =
-    `Namaste ${donorName} Sir/Madam! Thank you for your generous chanda of ${gift} ` +
-    `for Ganesh Chaturthi. Your support means a lot to us.\n- ${orgName}`;
-  return `https://wa.me/${toWaNumber(donorMobile)}?text=${encodeURIComponent(message)}`;
+      ? ` Given: ${itemDescription} (${formatAmount(amount)})`
+      : ` Given: ${itemDescription}`
+    : ` Amount: ${formatAmount(amount)}`;
+
+  const year = new Date().getFullYear();
+
+  const message = [
+    `🙏 *${orgName}* 🙏`,
+    ``,
+    ` *Vinayaka Chavithi ${year}* `,
+    ``,
+    ` *Contribution Received*`,
+    ` Name: ${donorName}`,
+    givenLine,
+    ``,
+    ` Thank you for your generous contribution and support towards our Vinayaka Chavithi celebrations. ❤️`,
+    ``,
+    `🌺 Ganapati Bappa Morya! 🌺`,
+    ``,
+    `With gratitude,`,
+    `✨ *Team ${orgName}* ✨`,
+  ].join("\n");
+
+  // whatsapp:// (not wa.me) — wa.me is a redirect webpage that re-parses the
+  // URL before handing off to the app, which corrupts 4-byte emoji on some
+  // Android/WhatsApp versions. The direct app deep link skips that hop.
+  return `whatsapp://send?phone=${toWaNumber(donorMobile)}&text=${encodeURIComponent(message)}`;
+}
+
+export function buildLuckyDrawReceiptUrl(
+  buyerName: string,
+  buyerMobile: string,
+  amount: number,
+  orgName: string,
+  paymentMethod: "cash" | "qr"
+): string {
+  const year = new Date().getFullYear();
+
+  const message = [
+    `🙏 *${orgName}* 🙏`,
+    ``,
+    ` *Vinayaka Chavithi ${year} Lucky Draw* `,
+    ``,
+    ` *Ticket Confirmation*`,
+    ` Name: ${buyerName}`,
+    ` Amount: ${formatAmount(amount)}`,
+    ` Paid via: ${paymentMethod === "qr" ? "QR" : "Cash"}`,
+    ``,
+    ` Thank you for participating in our Vinayaka Chavithi Lucky Draw! `,
+    ``,
+    ` *Best of luck!* 👍 `,
+    ``,
+    `🌺 Ganapati Bappa Morya! 🌺`,
+    ``,
+    `With gratitude,`,
+    `✨ *Team ${orgName}* ✨`,
+  ].join("\n");
+
+  return `whatsapp://send?phone=${toWaNumber(buyerMobile)}&text=${encodeURIComponent(message)}`;
 }
 
 /**

@@ -23,7 +23,11 @@ export default async function SettingsPage({
       .eq("user_id", user.id)
       .eq("status", "joined")
       .maybeSingle(),
-    supabase.from("organizations").select("name, logo_url").eq("id", orgId).maybeSingle(),
+    supabase
+      .from("organizations")
+      .select("name, logo_url, lucky_draw_ticket_price, lucky_draw_qr_url")
+      .eq("id", orgId)
+      .maybeSingle(),
   ]);
 
   if (!member || !org) notFound();
@@ -37,6 +41,8 @@ export default async function SettingsPage({
       canWrite={canWrite}
       initialName={org.name}
       initialLogoUrl={org.logo_url}
+      initialTicketPrice={org.lucky_draw_ticket_price}
+      initialQrUrl={org.lucky_draw_qr_url}
     />
   );
 }

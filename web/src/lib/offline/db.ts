@@ -17,6 +17,7 @@ export type ChandaCreatePayload = {
   area: string | null;
   bookReference: string | null;
   itemDescription: string | null;
+  paymentMethod: "cash" | "qr" | null;
 };
 
 export type ExpenseCreatePayload = {

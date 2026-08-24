@@ -20,6 +20,10 @@ LOGO_BUCKET = "org-logos"
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 ALLOWED_LOGO_TYPES = {"image/png": "png", "image/jpeg": "jpg"}
 
+QR_BUCKET = "lucky-draw-qr"
+MAX_QR_BYTES = 2 * 1024 * 1024
+ALLOWED_QR_TYPES = {"image/png": "png", "image/jpeg": "jpg"}
+
 
 # ---------------------------------------------------------------------------
 # Auth linking
@@ -127,16 +131,33 @@ def get_org(org_id: str, user: AuthUser = Depends(get_current_user)):
     return res.data
 
 
+@router.get("/orgs/{org_id}/me")
+def get_my_membership(org_id: str, user: AuthUser = Depends(get_current_user)):
+    member = get_member_row(org_id, user.id)
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member")
+    return {"role": member["role"], "access_level": member["access_level"]}
+
+
 @router.patch("/orgs/{org_id}")
 def update_org(
     org_id: str, body: UpdateOrgRequest, user: AuthUser = Depends(get_current_user)
 ):
     require_admin(org_id, user.id)
 
+    update: dict = {}
+    if body.name is not None:
+        update["name"] = body.name.strip()
+    if body.lucky_draw_ticket_price is not None:
+        update["lucky_draw_ticket_price"] = body.lucky_draw_ticket_price
+
     admin = get_admin_client()
+    if not update:
+        return admin.table("organizations").select("*").eq("id", org_id).limit(1).execute().data[0]
+
     res = (
         admin.table("organizations")
-        .update({"name": body.name})
+        .update(update)
         .eq("id", org_id)
         .execute()
     )
@@ -188,6 +209,40 @@ def delete_logo(org_id: str, user: AuthUser = Depends(get_current_user)):
     admin.table("organizations").update({"logo_url": None}).eq("id", org_id).execute()
 
     return {"logo_url": None}
+
+
+@router.patch("/orgs/{org_id}/lucky-draw-qr")
+async def upload_lucky_draw_qr(
+    org_id: str, file: UploadFile, user: AuthUser = Depends(get_current_user)
+):
+    require_admin(org_id, user.id)
+
+    ext = ALLOWED_QR_TYPES.get(file.content_type or "")
+    if ext is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="QR image must be PNG or JPEG",
+        )
+
+    body = await file.read()
+    if len(body) > MAX_QR_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="QR image must be 2MB or smaller",
+        )
+
+    admin = get_admin_client()
+    path = f"{org_id}/qr-{int(time.time())}.{ext}"
+    admin.storage.from_(QR_BUCKET).upload(
+        path,
+        body,
+        {"content-type": file.content_type, "upsert": "true"},
+    )
+    qr_url = admin.storage.from_(QR_BUCKET).get_public_url(path)
+
+    admin.table("organizations").update({"lucky_draw_qr_url": qr_url}).eq("id", org_id).execute()
+
+    return {"lucky_draw_qr_url": qr_url}
 
 
 # ---------------------------------------------------------------------------

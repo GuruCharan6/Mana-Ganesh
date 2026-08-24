@@ -7,6 +7,7 @@ from app.routers.announcements import router as announcements_router
 from app.routers.chanda import router as chanda_router
 from app.routers.dashboard import router as dashboard_router
 from app.routers.expenses import router as expenses_router
+from app.routers.lucky_draw import router as lucky_draw_router
 from app.routers.orgs import router as orgs_router
 from app.routers.pledges import router as pledges_router
 
@@ -26,6 +27,7 @@ app.include_router(expenses_router)
 app.include_router(dashboard_router)
 app.include_router(announcements_router)
 app.include_router(pledges_router)
+app.include_router(lucky_draw_router)
 
 
 @app.get("/health")

@@ -23,6 +23,8 @@ const ICONS = {
   dashboard: "M3 11.5 12 4l9 7.5M5.5 10v9a1 1 0 0 0 1 1h4v-6h3v6h4a1 1 0 0 0 1-1v-9",
   transactions: "M12 8v5l3 2M21 12a9 9 0 1 1-3-6.7M21 3v5h-5",
   expenses: "M6 3h12v18l-3-2-3 2-3-2-3 2V3zM8 8h8M8 12h8M8 16h5",
+  luckyDraw:
+    "M4 8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2 2 2 0 0 0 0 4 2 2 0 0 1-2 2H6a2 2 0 0 1-2-2 2 2 0 0 0 0-4ZM9 6v12",
 };
 
 export function OrgNav({ orgId }: { orgId: string }) {
@@ -31,6 +33,7 @@ export function OrgNav({ orgId }: { orgId: string }) {
   const tabs = [
     { href: `/org/${orgId}`, label: "Home", icon: <Icon path={ICONS.dashboard} /> },
     { href: `/org/${orgId}/chanda`, label: "Chanda", icon: <RupeeIcon /> },
+    { href: `/org/${orgId}/lucky-draw`, label: "Lucky Draw", icon: <Icon path={ICONS.luckyDraw} /> },
     { href: `/org/${orgId}/expenses`, label: "Expenses", icon: <Icon path={ICONS.expenses} /> },
     { href: `/org/${orgId}/transactions`, label: "History", icon: <Icon path={ICONS.transactions} /> },
   ];

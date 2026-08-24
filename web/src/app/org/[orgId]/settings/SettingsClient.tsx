@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiGet, apiPatch, apiUpload, ApiError } from "@/lib/api";
 import { formatAmount } from "@/lib/format";
@@ -25,16 +26,22 @@ export function SettingsClient({
   canWrite,
   initialName,
   initialLogoUrl,
+  initialTicketPrice,
+  initialQrUrl,
 }: {
   orgId: string;
   isAdmin: boolean;
   canWrite: boolean;
   initialName: string;
   initialLogoUrl: string | null;
+  initialTicketPrice: number | null;
+  initialQrUrl: string | null;
 }) {
-  const [totals, setTotals] = useState<{ total_collected: number; total_spent: number } | null>(
-    null
-  );
+  const [totals, setTotals] = useState<{
+    total_collected: number;
+    total_spent: number;
+    total_lucky_draw: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -108,6 +115,12 @@ export function SettingsClient({
                 {totals ? formatAmount(totals.total_spent) : "—"}
               </p>
             </div>
+            <div>
+              <p className="text-caption text-ink-muted uppercase tracking-[0.02em]">Lucky Draw</p>
+              <p className="font-mono text-display-lg text-ink">
+                {totals ? formatAmount(totals.total_lucky_draw) : "—"}
+              </p>
+            </div>
           </div>
           {error && <p className="text-caption text-sindoor">{error}</p>}
         </>
@@ -115,6 +128,24 @@ export function SettingsClient({
 
       {isAdmin && (
         <OrgIdentitySection orgId={orgId} initialName={initialName} initialLogoUrl={initialLogoUrl} />
+      )}
+
+      {isAdmin && (
+        <LuckyDrawSettingsSection
+          orgId={orgId}
+          initialTicketPrice={initialTicketPrice}
+          initialQrUrl={initialQrUrl}
+        />
+      )}
+
+      {canWrite && (
+        <Link
+          href={`/org/${orgId}/settings/thank-you`}
+          className="flex items-center justify-between py-2 border-b border-line"
+        >
+          <span className="text-body-strong">Thank You</span>
+          <span className="text-ink-muted text-body">→</span>
+        </Link>
       )}
 
       {canWrite && (
@@ -254,6 +285,131 @@ function OrgIdentitySection({
         {file && (
           <Button onClick={uploadPhoto} disabled={uploading}>
             {uploading ? "Uploading..." : "Save Photo"}
+          </Button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function LuckyDrawSettingsSection({
+  orgId,
+  initialTicketPrice,
+  initialQrUrl,
+}: {
+  orgId: string;
+  initialTicketPrice: number | null;
+  initialQrUrl: string | null;
+}) {
+  const router = useRouter();
+  const [price, setPrice] = useState(initialTicketPrice != null ? String(initialTicketPrice) : "");
+  const [savingPrice, setSavingPrice] = useState(false);
+  const [priceError, setPriceError] = useState<string | null>(null);
+  const [priceSaved, setPriceSaved] = useState(false);
+
+  const [qrUrl, setQrUrl] = useState(initialQrUrl);
+  const [qrFile, setQrFile] = useState<File | null>(null);
+  const [qrPreview, setQrPreview] = useState<string | null>(null);
+  const [uploadingQr, setUploadingQr] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function savePrice() {
+    setPriceError(null);
+    setPriceSaved(false);
+    const amt = parseFloat(price);
+    if (!amt || amt <= 0) return setPriceError("Enter a valid ticket price");
+    setSavingPrice(true);
+    try {
+      await apiPatch(`/orgs/${orgId}`, { lucky_draw_ticket_price: amt });
+      setPriceSaved(true);
+      router.refresh();
+    } catch (e) {
+      setPriceError(e instanceof ApiError ? e.message : "Could not save ticket price");
+    } finally {
+      setSavingPrice(false);
+    }
+  }
+
+  function onPickQr(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setQrFile(f);
+    setQrPreview(URL.createObjectURL(f));
+  }
+
+  async function uploadQr() {
+    if (!qrFile) return;
+    setQrError(null);
+    setUploadingQr(true);
+    try {
+      const res = await apiUpload(`/orgs/${orgId}/lucky-draw-qr`, qrFile);
+      setQrUrl(res.lucky_draw_qr_url);
+      setQrFile(null);
+      setQrPreview(null);
+      router.refresh();
+    } catch (e) {
+      setQrError(e instanceof ApiError ? e.message : "Upload failed");
+    } finally {
+      setUploadingQr(false);
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-5">
+      <h2 className="text-heading-2 font-sans">Lucky Draw</h2>
+
+      <div className="flex flex-col gap-3">
+        <span className="text-body font-semibold">Ticket price (₹)</span>
+        <div className="flex flex-col gap-2">
+          <input
+            type="number"
+            inputMode="decimal"
+            value={price}
+            onChange={(e) => {
+              setPrice(e.target.value);
+              setPriceSaved(false);
+            }}
+            className="w-full rounded-lg border border-line px-3 py-2.5 text-body font-mono outline-none"
+          />
+          <Button onClick={savePrice} disabled={savingPrice}>
+            {savingPrice ? "Saving..." : "Save"}
+          </Button>
+        </div>
+        {priceError && <p className="text-caption text-sindoor">{priceError}</p>}
+        {priceSaved && <p className="text-caption text-durva">Saved.</p>}
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <span className="text-body font-semibold">Payment QR code</span>
+        <div className="flex items-center gap-4">
+          {(qrPreview ?? qrUrl) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrPreview ?? qrUrl ?? undefined}
+              alt="Payment QR code"
+              className="h-20 w-20 rounded-lg border border-line object-contain bg-surface"
+            />
+          ) : (
+            <div className="h-20 w-20 rounded-lg border border-line bg-surface flex items-center justify-center text-caption text-ink-muted">
+              None
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg"
+            onChange={onPickQr}
+            className="hidden"
+          />
+          <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+            {qrUrl ? "Change QR" : "Upload QR"}
+          </Button>
+        </div>
+        {qrError && <p className="text-caption text-sindoor">{qrError}</p>}
+        {qrFile && (
+          <Button onClick={uploadQr} disabled={uploadingQr}>
+            {uploadingQr ? "Uploading..." : "Save QR"}
           </Button>
         )}
       </div>

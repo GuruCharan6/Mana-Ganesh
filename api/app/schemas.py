@@ -9,7 +9,22 @@ class CreateOrgRequest(BaseModel):
 
 
 class UpdateOrgRequest(BaseModel):
-    name: str = Field(min_length=1)
+    name: str | None = None
+    lucky_draw_ticket_price: float | None = None
+
+    @field_validator("name")
+    @classmethod
+    def name_not_blank(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("name cannot be blank")
+        return v
+
+    @field_validator("lucky_draw_ticket_price")
+    @classmethod
+    def price_positive(cls, v: float | None) -> float | None:
+        if v is not None and v <= 0:
+            raise ValueError("ticket price must be positive")
+        return round(v, 2) if v is not None else v
 
 
 class AddMemberRequest(BaseModel):
@@ -39,6 +54,7 @@ class ChandaCreate(BaseModel):
     area: str | None = None
     book_reference: str | None = None
     item_description: str | None = None
+    payment_method: str | None = None  # 'cash' | 'qr'
     client_ref: str | None = None  # offline-generated id, echoed back for outbox reconciliation
 
     @field_validator("amount")
@@ -47,6 +63,13 @@ class ChandaCreate(BaseModel):
         if v < 0:
             raise ValueError("amount cannot be negative")
         return round(v, 2)
+
+    @field_validator("payment_method")
+    @classmethod
+    def valid_payment_method(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("cash", "qr"):
+            raise ValueError("payment_method must be 'cash' or 'qr'")
+        return v
 
     @model_validator(mode="after")
     def require_amount_or_item(self):
@@ -57,6 +80,26 @@ class ChandaCreate(BaseModel):
 
 class ChandaBatchCreate(BaseModel):
     entries: list[ChandaCreate]
+
+
+class ChandaUpdate(BaseModel):
+    donor_name: str | None = None
+    donor_mobile: str | None = None
+    amount: float | None = None
+    collected_on: date | None = None
+    area: str | None = None
+    book_reference: str | None = None
+    item_description: str | None = None
+    payment_method: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def round_amount(cls, v: float | None) -> float | None:
+        if v is None:
+            return None
+        if v < 0:
+            raise ValueError("amount cannot be negative")
+        return round(v, 2)
 
 
 class ChandaCommentCreate(BaseModel):
@@ -131,3 +174,61 @@ class ExpenseAdjustCreate(BaseModel):
         if v == 0:
             raise ValueError("amount cannot be zero")
         return round(v, 2)
+
+
+class ExpenseUpdate(BaseModel):
+    category: str | None = None
+    vendor_name: str | None = None
+    amount: float | None = None
+    expense_date: date | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def positive_rounded(cls, v: float | None) -> float | None:
+        if v is None:
+            return None
+        if v <= 0:
+            raise ValueError("amount must be positive")
+        return round(v, 2)
+
+
+class LuckyDrawTicket(BaseModel):
+    buyer_name: str = Field(min_length=1)
+    buyer_mobile: str | None = None
+    buyer_address: str | None = None
+
+
+class LuckyDrawCreate(BaseModel):
+    payment_method: str
+    tickets: list[LuckyDrawTicket] = Field(min_length=1)
+
+    @field_validator("payment_method")
+    @classmethod
+    def valid_payment_method(cls, v: str) -> str:
+        if v not in ("cash", "qr"):
+            raise ValueError("payment_method must be 'cash' or 'qr'")
+        return v
+
+
+class LuckyDrawUpdate(BaseModel):
+    buyer_name: str | None = None
+    buyer_mobile: str | None = None
+    buyer_address: str | None = None
+    amount: float | None = None
+    payment_method: str | None = None
+
+    @field_validator("amount")
+    @classmethod
+    def positive_rounded(cls, v: float | None) -> float | None:
+        if v is None:
+            return None
+        if v <= 0:
+            raise ValueError("amount must be positive")
+        return round(v, 2)
+
+    @field_validator("payment_method")
+    @classmethod
+    def valid_payment_method(cls, v: str | None) -> str | None:
+        if v is not None and v not in ("cash", "qr"):
+            raise ValueError("payment_method must be 'cash' or 'qr'")
+        return v

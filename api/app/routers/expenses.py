@@ -4,8 +4,8 @@ from datetime import date
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from app.auth import AuthUser, get_current_user
-from app.authz import require_full_access, require_member
-from app.schemas import ExpenseAdjustCreate, ExpenseCommentCreate
+from app.authz import require_admin, require_full_access, require_member
+from app.schemas import ExpenseAdjustCreate, ExpenseCommentCreate, ExpenseUpdate
 from app.supabase_admin import get_admin_client
 
 router = APIRouter()
@@ -180,6 +180,52 @@ def add_expense_comment(
         .execute()
     )
     return res.data[0]
+
+
+@router.patch("/expenses/{entry_id}")
+async def update_expense(
+    entry_id: str,
+    category: str | None = Form(None),
+    amount: float | None = Form(None),
+    expense_date: date | None = Form(None),
+    vendor_name: str | None = Form(None),
+    receipt: UploadFile | None = File(None),
+    user: AuthUser = Depends(get_current_user),
+):
+    admin = get_admin_client()
+    entry = _get_entry_or_404(admin, entry_id)
+    require_admin(entry["org_id"], user.id)
+
+    body = ExpenseUpdate(
+        category=category, amount=amount, expense_date=expense_date, vendor_name=vendor_name
+    )
+    update = {
+        k: v
+        for k, v in {
+            "category": body.category,
+            "vendor_name": body.vendor_name,
+            "amount": body.amount,
+            "expense_date": body.expense_date.isoformat() if body.expense_date else None,
+        }.items()
+        if v is not None
+    }
+    if receipt is not None and receipt.filename:
+        update["receipt_url"] = await _upload_receipt(admin, entry["org_id"], receipt)
+
+    if not update:
+        return entry
+
+    res = admin.table("expense_entries").update(update).eq("id", entry_id).execute()
+    return res.data[0]
+
+
+@router.delete("/expenses/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_expense(entry_id: str, user: AuthUser = Depends(get_current_user)):
+    admin = get_admin_client()
+    entry = _get_entry_or_404(admin, entry_id)
+    require_admin(entry["org_id"], user.id)
+
+    admin.table("expense_entries").delete().eq("id", entry_id).execute()
 
 
 @router.post("/expenses/{entry_id}/adjust", status_code=status.HTTP_201_CREATED)

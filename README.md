@@ -8,9 +8,11 @@ live numbers.
 **Stack:** Next.js 15 (App Router, TypeScript, Tailwind v4) frontend +
 FastAPI backend + Supabase (Postgres, Auth, Storage).
 
-Auth is Google OAuth (not phone/OTP). Chanda and expense entries are
-immutable — corrections happen via a comment plus an additive adjustment
-entry, never an edit/delete.
+Auth is Google OAuth (not phone/OTP). Chanda, Expense, and Lucky Draw
+entries are immutable for everyone except Admin — corrections normally
+happen via a comment plus an additive adjustment entry, never an edit/delete;
+Admin alone can directly edit or delete an entry when needed (no audit trail
+kept, by design).
 
 ---
 
@@ -19,7 +21,7 @@ entry, never an edit/delete.
 ```
 web/       Next.js frontend
 api/       FastAPI backend
-supabase/  SQL migrations (run in order against a fresh project)
+supabase/  SQL schema (one consolidated migration file)
 assets/    Logo source art
 ```
 
@@ -28,15 +30,14 @@ assets/    Logo source art
 ## 1. Set up Supabase
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run every file in `supabase/migrations/` **in filename
-   order** (not `_archive/` — those are superseded history, kept for
-   reference only):
-   - [`0001_init.sql`](supabase/migrations/0001_init.sql) — the full
-     consolidated schema (tables + RLS policies).
-   - [`0002_pledge_area_bookref_amount.sql`](supabase/migrations/0002_pledge_area_bookref_amount.sql)
-     — adds `area`, `book_reference`, `promised_amount` to
-     `chanda_pledges` so "Promised for later" captures the same fields
-     as "Received now".
+2. In the SQL editor, run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql)
+   — the complete schema: every table, RLS policy, and Storage bucket the
+   app needs, in one file. There's no migration history to walk through —
+   this file is always kept as the single current end-state, updated in
+   place as the schema evolves rather than layered with new files.
+   **Only for a brand-new project** — an existing live project already has
+   this schema applied incrementally; running it there would fail on
+   `already exists` errors for every table.
 3. **Enable Google OAuth**: Authentication → Providers → Google. You'll need
    a Google Cloud OAuth client (Web application type):
    - Authorized redirect URI: `https://<your-project-ref>.supabase.co/auth/v1/callback`
@@ -44,10 +45,9 @@ assets/    Logo source art
 4. Under Authentication → URL Configuration, add your deployed frontend URL
    (e.g. `https://your-app.vercel.app`) to **Redirect URLs** — otherwise the
    OAuth callback will be rejected in production.
-5. Create two Storage buckets (public read): `org-logos`, `expense-receipts`,
-   `announcement-images` — see `supabase/migrations/_archive/000{3,5,6}_*.sql`
-   for the exact bucket/policy definitions if you want to script it instead
-   of using the dashboard.
+5. Storage buckets (`org-logos`, `expense-receipts`, `announcement-images`,
+   `lucky-draw-qr`) are created automatically by the migration above — no
+   manual dashboard step needed.
 6. Grab these values from Project Settings → API / Auth:
    - `Project URL`
    - `anon` public key

@@ -23,10 +23,12 @@ type ServerEntry = {
   book_reference: string | null;
   adjustment_for: string | null;
   item_description: string | null;
+  payment_method: "cash" | "qr" | null;
   collected_by_name: string;
 };
 
 type StatusFilter = "all" | "collected" | "later";
+type PaymentFilter = "all" | "cash" | "qr";
 
 export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite: boolean }) {
   const [serverEntries, setServerEntries] = useState<ServerEntry[] | null>(null);
@@ -36,6 +38,7 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [itemsOnly, setItemsOnly] = useState(false);
+  const [paymentFilter, setPaymentFilter] = useState<PaymentFilter>("all");
 
   const loadServer = useCallback(async () => {
     try {
@@ -78,16 +81,24 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
   const visibleEntries = useMemo(
     () =>
       (serverEntries ?? []).filter(
-        (e) => matchesSearch(e.donor_name) && (!itemsOnly || e.item_description)
+        (e) =>
+          matchesSearch(e.donor_name) &&
+          (!itemsOnly || e.item_description) &&
+          (paymentFilter === "all" || e.payment_method === paymentFilter)
       ),
-    [serverEntries, matchesSearch, itemsOnly]
+    [serverEntries, matchesSearch, itemsOnly, paymentFilter]
   );
+  // Pledges have no payment method (nothing's been paid yet) — a cash/QR
+  // filter naturally excludes them rather than guessing which bucket they'd
+  // belong to.
   const visiblePledges = useMemo(
     () =>
-      (pledges ?? []).filter(
-        (p) => matchesSearch(p.donor_name) && (!itemsOnly || p.item_description)
-      ),
-    [pledges, matchesSearch, itemsOnly]
+      paymentFilter !== "all"
+        ? []
+        : (pledges ?? []).filter(
+            (p) => matchesSearch(p.donor_name) && (!itemsOnly || p.item_description)
+          ),
+    [pledges, matchesSearch, itemsOnly, paymentFilter]
   );
 
   const total = (serverEntries ?? []).reduce((sum, e) => sum + e.amount, 0);
@@ -121,21 +132,28 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
         className="rounded-lg border border-line px-3 py-2.5 text-body outline-none"
       />
 
-      <div className="flex gap-1.5 flex-nowrap overflow-x-auto -mx-1 px-1">
-        {(["all", "collected", "later"] as StatusFilter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-caption font-semibold capitalize ${
-              filter === f ? "border-marigold bg-marigold/10 text-ink" : "border-line text-ink-muted"
-            }`}
-          >
-            {f}
-          </button>
-        ))}
+      <div className="grid grid-cols-3 gap-2">
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value as StatusFilter)}
+          className="min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none bg-surface capitalize"
+        >
+          <option value="all">All Status</option>
+          <option value="collected">Collected</option>
+          <option value="later">Later</option>
+        </select>
+        <select
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value as PaymentFilter)}
+          className="min-w-0 rounded-lg border border-line px-2 py-2 text-caption outline-none bg-surface"
+        >
+          <option value="all">Any Payment</option>
+          <option value="cash">Cash</option>
+          <option value="qr">QR</option>
+        </select>
         <button
           onClick={() => setItemsOnly((v) => !v)}
-          className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-caption font-semibold ${
+          className={`min-w-0 rounded-lg border px-2 py-2 text-caption font-semibold ${
             itemsOnly ? "border-marigold bg-marigold/10 text-ink" : "border-line text-ink-muted"
           }`}
         >
@@ -185,7 +203,7 @@ export function ChandaListClient({ orgId, canWrite }: { orgId: string; canWrite:
           (!showPledges || visiblePledges.length === 0) &&
           outbox.length === 0 && (
             <p className="text-body text-ink-muted py-4">
-              {q || itemsOnly
+              {q || itemsOnly || paymentFilter !== "all"
                 ? "No chanda entries match your filters."
                 : canWrite
                   ? 'No chanda entries yet. Tap "+ Add" to log the first one.'

@@ -13,7 +13,7 @@ function Icon({ path }: { path: string }) {
 
 function RupeeIcon() {
   return (
-    <span className="h-5 w-5 flex items-center justify-center text-lg font-bold leading-none">
+    <span className="h-5 w-5 flex items-center justify-center text-base font-semibold leading-none">
       ₹
     </span>
   );
@@ -33,7 +33,7 @@ export function OrgNav({ orgId }: { orgId: string }) {
   const tabs = [
     { href: `/org/${orgId}`, label: "Home", icon: <Icon path={ICONS.dashboard} /> },
     { href: `/org/${orgId}/chanda`, label: "Chanda", icon: <RupeeIcon /> },
-    { href: `/org/${orgId}/lucky-draw`, label: "Lucky Draw", icon: <Icon path={ICONS.luckyDraw} /> },
+    { href: `/org/${orgId}/lucky-draw`, label: "Draw", icon: <Icon path={ICONS.luckyDraw} /> },
     { href: `/org/${orgId}/expenses`, label: "Expenses", icon: <Icon path={ICONS.expenses} /> },
     { href: `/org/${orgId}/transactions`, label: "History", icon: <Icon path={ICONS.transactions} /> },
   ];
@@ -52,12 +52,12 @@ export function OrgNav({ orgId }: { orgId: string }) {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-h-14 ${
+            className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 px-1 py-2 min-h-14 ${
               active ? "text-marigold" : "text-ink-muted"
             }`}
           >
             {tab.icon}
-            <span className="text-badge leading-none">{tab.label}</span>
+            <span className="text-badge leading-none whitespace-nowrap">{tab.label}</span>
           </Link>
         );
       })}

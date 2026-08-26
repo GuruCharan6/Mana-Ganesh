@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import AuthUser, get_current_user
 from app.authz import require_full_access, require_member
 from app.schemas import PledgeCreate, PledgeResolveCash, PledgeResolveCollected
-from app.supabase_admin import get_admin_client
+from app.supabase_admin import execute_read, get_admin_client
 
 router = APIRouter()
 
@@ -22,13 +22,12 @@ def list_pledges(org_id: str, user: AuthUser = Depends(get_current_user)):
     require_member(org_id, user.id)
 
     admin = get_admin_client()
-    res = (
+    res = execute_read(
         admin.table("chanda_pledges")
         .select("*")
         .eq("org_id", org_id)
         .eq("status", "pending")
         .order("promised_on")
-        .execute()
     )
     return res.data
 

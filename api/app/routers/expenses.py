@@ -3,10 +3,11 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
+from app.audit import log_change
 from app.auth import AuthUser, get_current_user
 from app.authz import require_admin, require_full_access, require_member
 from app.schemas import ExpenseAdjustCreate, ExpenseCommentCreate, ExpenseUpdate
-from app.supabase_admin import get_admin_client
+from app.supabase_admin import execute_read, get_admin_client
 
 router = APIRouter()
 
@@ -57,13 +58,12 @@ def list_expenses(org_id: str, user: AuthUser = Depends(get_current_user)):
     require_member(org_id, user.id)
 
     admin = get_admin_client()
-    res = (
+    res = execute_read(
         admin.table("expense_entries")
         .select("*")
         .eq("org_id", org_id)
         .order("expense_date", desc=True)
         .order("created_at", desc=True)
-        .execute()
     )
     names = _member_name_map(admin, org_id)
     return [
@@ -216,7 +216,9 @@ async def update_expense(
         return entry
 
     res = admin.table("expense_entries").update(update).eq("id", entry_id).execute()
-    return res.data[0]
+    updated = res.data[0]
+    log_change(entry["org_id"], "expense", entry_id, "update", user.id, entry, updated)
+    return updated
 
 
 @router.delete("/expenses/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -226,6 +228,7 @@ def delete_expense(entry_id: str, user: AuthUser = Depends(get_current_user)):
     require_admin(entry["org_id"], user.id)
 
     admin.table("expense_entries").delete().eq("id", entry_id).execute()
+    log_change(entry["org_id"], "expense", entry_id, "delete", user.id, entry, None)
 
 
 @router.post("/expenses/{entry_id}/adjust", status_code=status.HTTP_201_CREATED)

@@ -137,6 +137,25 @@ create table lucky_draw_entries (
   created_at timestamptz default now()
 );
 
+-- Audit trail for Admin edit/delete on chanda_entries, expense_entries, and
+-- lucky_draw_entries — full before/after row snapshots (jsonb), kept forever,
+-- written only by the backend (service role). Append-only: no update/delete
+-- policies on this table at all.
+create table audit_log (
+  id uuid primary key default gen_random_uuid(),
+  org_id uuid references organizations(id) not null,
+  entry_type text not null check (entry_type in ('chanda', 'expense', 'lucky_draw')),
+  entry_id uuid not null, -- no FK: the row may no longer exist after a delete
+  action text not null check (action in ('update', 'delete')),
+  changed_by uuid references auth.users(id) not null,
+  changed_at timestamptz default now(),
+  old_values jsonb not null,
+  new_values jsonb
+);
+
+create index audit_log_org_id_idx on audit_log(org_id);
+create index audit_log_entry_idx on audit_log(entry_type, entry_id);
+
 -- ============================================================================
 -- Helper functions (security definer — avoids RLS self-recursion on org_members)
 -- ============================================================================
@@ -201,6 +220,7 @@ alter table expense_comments enable row level security;
 alter table announcements enable row level security;
 alter table chanda_pledges enable row level security;
 alter table lucky_draw_entries enable row level security;
+alter table audit_log enable row level security;
 
 -- organizations ---------------------------------------------------------
 
@@ -372,6 +392,14 @@ create policy "admin can update lucky draw entries"
 
 create policy "admin can delete lucky draw entries"
   on lucky_draw_entries for delete
+  using (is_org_admin(org_id));
+
+-- audit_log --------------------------------------------------------------
+-- Append-only: no insert/update/delete policy for clients at all. Only the
+-- backend's service-role client writes here (bypasses RLS).
+
+create policy "admin can read audit log"
+  on audit_log for select
   using (is_org_admin(org_id));
 
 -- ============================================================================

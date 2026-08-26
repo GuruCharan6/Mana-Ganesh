@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.audit import log_change
 from app.auth import AuthUser, get_current_user
 from app.authz import require_admin, require_full_access, require_member
 from app.schemas import (
@@ -11,7 +12,7 @@ from app.schemas import (
     ChandaCreate,
     ChandaUpdate,
 )
-from app.supabase_admin import get_admin_client
+from app.supabase_admin import execute_read, get_admin_client
 
 router = APIRouter()
 
@@ -38,13 +39,12 @@ def list_chanda(org_id: str, user: AuthUser = Depends(get_current_user)):
     require_member(org_id, user.id)
 
     admin = get_admin_client()
-    res = (
+    res = execute_read(
         admin.table("chanda_entries")
         .select("*")
         .eq("org_id", org_id)
         .order("collected_on", desc=True)
         .order("entered_on", desc=True)
-        .execute()
     )
     names = _member_name_map(admin, org_id)
     entries = [
@@ -228,7 +228,9 @@ def update_chanda(
         return entry
 
     res = admin.table("chanda_entries").update(update).eq("id", entry_id).execute()
-    return res.data[0]
+    updated = res.data[0]
+    log_change(entry["org_id"], "chanda", entry_id, "update", user.id, entry, updated)
+    return updated
 
 
 @router.delete("/chanda/{entry_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -238,6 +240,7 @@ def delete_chanda(entry_id: str, user: AuthUser = Depends(get_current_user)):
     require_admin(entry["org_id"], user.id)
 
     admin.table("chanda_entries").delete().eq("id", entry_id).execute()
+    log_change(entry["org_id"], "chanda", entry_id, "delete", user.id, entry, None)
 
 
 @router.post("/chanda/{entry_id}/adjust", status_code=status.HTTP_201_CREATED)

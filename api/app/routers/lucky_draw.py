@@ -2,10 +2,11 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.audit import log_change
 from app.auth import AuthUser, get_current_user
 from app.authz import require_admin, require_full_access, require_member
 from app.schemas import LuckyDrawCreate, LuckyDrawUpdate
-from app.supabase_admin import get_admin_client
+from app.supabase_admin import execute_read, get_admin_client
 
 router = APIRouter()
 
@@ -27,12 +28,11 @@ def list_lucky_draw(org_id: str, user: AuthUser = Depends(get_current_user)):
     require_member(org_id, user.id)
 
     admin = get_admin_client()
-    res = (
+    res = execute_read(
         admin.table("lucky_draw_entries")
         .select("*")
         .eq("org_id", org_id)
         .order("created_at", desc=True)
-        .execute()
     )
     names = _member_name_map(admin, org_id)
     return [{**row, "sold_by_name": names.get(row["sold_by"], "Unknown")} for row in res.data]
@@ -113,7 +113,9 @@ def update_lucky_draw_ticket(
         return ticket
 
     res = admin.table("lucky_draw_entries").update(update).eq("id", ticket_id).execute()
-    return res.data[0]
+    updated = res.data[0]
+    log_change(ticket["org_id"], "lucky_draw", ticket_id, "update", user.id, ticket, updated)
+    return updated
 
 
 @router.post("/lucky-draw/{ticket_id}/mark-thanked")
@@ -138,3 +140,4 @@ def delete_lucky_draw_ticket(ticket_id: str, user: AuthUser = Depends(get_curren
     require_admin(ticket["org_id"], user.id)
 
     admin.table("lucky_draw_entries").delete().eq("id", ticket_id).execute()
+    log_change(ticket["org_id"], "lucky_draw", ticket_id, "delete", user.id, ticket, None)
